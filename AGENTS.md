@@ -243,7 +243,7 @@ Responsibilities:
 - Launch implementation agents
 - Launch Team Lead reviews
 - Terminate obsolete sessions when task assignments change
-- Use the repository clone in `workspaces/repo-tl` as the Team Lead workspace
+- Use `workspaces/repo-tl` as the Team Lead execution workspace; the top-level repo owns `TASKS.md`
 
 Agents never launch one another.
 
