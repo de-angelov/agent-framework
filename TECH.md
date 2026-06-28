@@ -201,15 +201,16 @@ Team Lead verification:
 
 Until core workflows are complete:
 
-Prefer simple layouts.
+Use only simple layouts.
 
-Default styling:
+Required default styling:
 
 - Flexbox layouts
 - `padding: 10px`
 - `border: 1px solid grey`
 
 Avoid unnecessary visual polish until core functionality is complete.
+Do not add custom fonts, shadows, gradients, rounded corners, or decorative spacing unless explicitly required.
 
 ---
 

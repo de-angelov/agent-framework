@@ -10,6 +10,7 @@ import (
 )
 
 const defaultRepoURL = "https://github.com/de-angelov/agent-task-test"
+const defaultRepoSSHURL = "git@github.com:de-angelov/agent-task-test.git"
 
 func main() {
 	root, err := os.Getwd()
@@ -40,11 +41,27 @@ func createClone(root, dir string) {
 	path := filepath.Join(root, dir)
 	if _, err := os.Stat(path); err == nil {
 		fmt.Println("• exists:", dir)
+		ensureSSHRemote(path)
+		removeWorkspaceTaskBoard(path)
 		return
 	}
 
 	run(root, "git", "clone", defaultRepoURL, dir)
 	fmt.Println("✓ clone:", dir)
+	ensureSSHRemote(path)
+	removeWorkspaceTaskBoard(path)
+}
+
+func ensureSSHRemote(repoPath string) {
+	run(repoPath, "git", "remote", "set-url", "origin", defaultRepoSSHURL)
+	fmt.Println("✓ remote:", defaultRepoSSHURL)
+}
+
+func removeWorkspaceTaskBoard(repoPath string) {
+	taskBoard := filepath.Join(repoPath, "TASKS.md")
+	if err := os.Remove(taskBoard); err == nil {
+		fmt.Println("✓ removed:", filepath.Join(filepath.Base(repoPath), "TASKS.md"))
+	}
 }
 
 func run(dir string, name string, args ...string) {

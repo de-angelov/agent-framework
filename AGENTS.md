@@ -124,6 +124,7 @@ Only the Team Lead merges into `main`. Implementation agents never work directly
 # Workspace Isolation
 
 Each role has its own workspace directory.
+The top-level repository owns `TASKS.md`; workspace clones are execution-only and do not keep separate boards.
 
 Active workspaces:
 

@@ -23,7 +23,8 @@ my-project/
     └── repo-agent-2/  ← Agent 2 clone
 ```
 
-Each `repo-*` directory is a separate clone of the same repository.
+The top-level repo owns `TASKS.md`, `AGENTS.md`, and `TECH.md`.
+Each `repo-*` directory is a separate execution clone used by the orchestrator.
 
 ---
 
@@ -61,10 +62,9 @@ cd setup
 go run setup.go
 ```
 
-Then start the Team Lead clone:
+Then start the orchestrator from the top-level repo:
 
 ```bash
-cd workspaces/repo-tl
 go run orchestrator.go
 ```
 
@@ -79,13 +79,14 @@ Root: /path/to/my-project
 Setup complete.
 
 Next steps:
+  go run orchestrator.go
   cd workspaces/repo-tl && go run orchestrator.go
   cd workspaces/repo-agent-1 && go run orchestrator.go
   cd workspaces/repo-agent-2 && go run orchestrator.go
 
 Orchestrator started...
 
-repo root: /path/to/my-project/workspaces/repo-tl
+repo root: /path/to/my-project
 ```
 
 Nothing happens because no work has been assigned.
@@ -98,7 +99,7 @@ Instead of editing `TASKS.md` manually, the user should ask the Team Lead:
 
 > Build a todo application.
 
-The Team Lead updates `TASKS.md`:
+The Team Lead updates the top-level `TASKS.md`:
 
 ```md
 ## Backlog
