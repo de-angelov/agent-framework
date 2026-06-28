@@ -118,7 +118,9 @@ agent/1/login-page
 agent/2/dashboard
 ```
 
-Implementation agents merge their completed work and move finished tasks into **Done**. The Team Lead only assigns new work.
+Implementation agents squash-merge their completed work and move finished tasks into **Done**. The Team Lead only assigns new work.
+
+Completed task branches must be merged into product `main` with a squash merge so `main` receives one final commit per task.
 
 ---
 
@@ -215,7 +217,7 @@ Before marking work complete, implementation agents:
 
 1. Run verification defined in `TECH.md`.
 2. Commit focused changes.
-3. Merge their completed branch into product `main`.
+3. Squash-merge their completed branch into product `main`.
 4. Push the completed work.
 5. Update the task with verification and merge notes.
 

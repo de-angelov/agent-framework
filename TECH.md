@@ -226,6 +226,8 @@ Do not:
 
 Each completed task should be committed separately.
 
+When merging a completed task branch into `main`, use a squash merge. `main` should receive one final commit for the task, even if the implementation branch contains multiple working commits.
+
 Commit messages must include:
 
 - the ticket/task number

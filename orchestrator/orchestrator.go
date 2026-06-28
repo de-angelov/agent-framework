@@ -29,9 +29,10 @@ var (
 	agent2Path   = filepath.Join(workspacesRoot, "repo-agent-2")
 
 	// Protects the running sessions map from concurrent map read/write panics
-	mu      sync.Mutex
-	running = map[string]RunningSession{}
-	logMu   sync.Mutex
+	mu       sync.Mutex
+	running  = map[string]RunningSession{}
+	finished = map[string]FinishedSession{}
+	logMu    sync.Mutex
 
 	ansiColorRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 )
@@ -46,10 +47,30 @@ type Task struct {
 }
 
 type RunningSession struct {
-	Role   string
-	Task   string
-	Cancel context.CancelFunc
+	Role    string
+	Task    string
+	TaskKey string
+	Branch  string
+	Cancel  context.CancelFunc
 }
+
+type FinishedSession struct {
+	Role       string
+	Task       string
+	TaskKey    string
+	Branch     string
+	Outcome    SessionOutcome
+	FinishedAt time.Time
+}
+
+type SessionOutcome string
+
+const (
+	sessionCompleted SessionOutcome = "completed"
+	sessionFailed    SessionOutcome = "failed"
+	sessionCancelled SessionOutcome = "cancelled"
+	sessionUnknown   SessionOutcome = "unknown"
+)
 
 func main() {
 	mustMkdir(logsRoot)
@@ -108,10 +129,17 @@ func reconcile(tasks []Task) {
 	}
 
 	mu.Lock()
+	for role := range finished {
+		if _, stillDesired := desired[role]; !stillDesired {
+			delete(finished, role)
+		}
+	}
+
 	for role, session := range running {
 		task, stillDesired := desired[role]
+		taskKey := taskFingerprint(task)
 
-		if !stillDesired || task.Title != session.Task {
+		if !stillDesired || taskKey != session.TaskKey {
 			logEvent("stopping %s because TASKS.md changed", role)
 			session.Cancel()
 			delete(running, role)
@@ -120,6 +148,8 @@ func reconcile(tasks []Task) {
 	mu.Unlock()
 
 	for role, task := range desired {
+		taskKey := taskFingerprint(task)
+
 		if role != "Team Lead" && !workspaceExists(role) {
 			logEvent("skipping %s because workspace is missing", role)
 			continue
@@ -127,9 +157,18 @@ func reconcile(tasks []Task) {
 
 		mu.Lock()
 		_, exists := running[role]
+		finishedSession, alreadyFinished := finished[role]
+		if alreadyFinished && finishedSession.TaskKey != taskKey {
+			delete(finished, role)
+			alreadyFinished = false
+		}
 		mu.Unlock()
 
 		if exists {
+			continue
+		}
+
+		if alreadyFinished {
 			continue
 		}
 
@@ -155,37 +194,51 @@ func workspaceExists(role string) bool {
 
 func startSession(role string, task Task) {
 	ctx, cancel := context.WithCancel(context.Background())
+	taskKey := taskFingerprint(task)
 
 	mu.Lock()
 	running[role] = RunningSession{
-		Role:   role,
-		Task:   task.Title,
-		Cancel: cancel,
+		Role:    role,
+		Task:    task.Title,
+		TaskKey: taskKey,
+		Branch:  task.Branch,
+		Cancel:  cancel,
 	}
 	mu.Unlock()
 	logEvent("starting %s on %s", role, task.Title)
 
 	go func() {
+		outcome := sessionUnknown
 		defer func() {
 			mu.Lock()
 			delete(running, role)
+			if outcome != sessionCancelled {
+				finished[role] = FinishedSession{
+					Role:       role,
+					Task:       task.Title,
+					TaskKey:    taskKey,
+					Branch:     task.Branch,
+					Outcome:    outcome,
+					FinishedAt: time.Now(),
+				}
+			}
 			mu.Unlock()
 		}()
 
 		switch role {
 		case "Agent 1":
-			runAgent(ctx, "Agent 1", agent1Path, task)
+			outcome = runAgent(ctx, "Agent 1", agent1Path, task)
 
 		case "Agent 2":
-			runAgent(ctx, "Agent 2", agent2Path, task)
+			outcome = runAgent(ctx, "Agent 2", agent2Path, task)
 
 		case "Team Lead":
-			runTeamLead(ctx, task)
+			outcome = runTeamLead(ctx, task)
 		}
 	}()
 }
 
-func runAgent(ctx context.Context, role string, workspace string, task Task) {
+func runAgent(ctx context.Context, role string, workspace string, task Task) SessionOutcome {
 	logEvent("starting %s on %s in %s", role, task.Title, workspace)
 
 	if task.Branch != "" {
@@ -215,14 +268,14 @@ Rules:
 - Run focused verification.
 - Commit your completed work.
 - Push your branch.
-- Merge your branch when done.
+- Squash-merge your branch into product main when done.
 - Move this task to Done and set Status: Done when complete.
 `)
 
-	runCodex(ctx, workspace, prompt)
+	return runCodex(ctx, workspace, prompt)
 }
 
-func runTeamLead(ctx context.Context, task Task) {
+func runTeamLead(ctx context.Context, task Task) SessionOutcome {
 	runGit(teamLeadPath, "fetch", "--all", "--prune")
 	currentBranch := currentBranchName(teamLeadPath)
 	if currentBranch != "" {
@@ -244,7 +297,7 @@ Rules:
 - Assign a new non-overlapping task from Backlog if appropriate.
 `)
 
-	runCodex(ctx, teamLeadPath, prompt)
+	return runCodex(ctx, teamLeadPath, prompt)
 }
 
 func currentBranchName(workspace string) string {
@@ -261,9 +314,7 @@ func currentBranchName(workspace string) string {
 func buildPrompt(role string, task Task, roleInstructions string) string {
 	agents := mustRead(agentsFile)
 	tech := mustRead(techFile)
-
-	// Filter out the completed tasks to save tokens
-	filteredTasks := readFilteredTasks(tasksFile)
+	taskContext := buildTaskContext(role, task)
 
 	return fmt.Sprintf(`
 You are running inside the multi-agent development workflow.
@@ -278,7 +329,7 @@ Active role: %s
 
 %s
 
-================ TASKS.md (Active & Backlog only) ================
+================ TASKS.md CONTEXT ================
 
 %s
 
@@ -297,42 +348,108 @@ Task body:
 ================ ROLE INSTRUCTIONS ================
 
 %s
-`, role, agents, tech, filteredTasks, task.Section, task.Title, task.Owner, task.Branch, task.Status, task.Body, roleInstructions)
+`, role, agents, tech, taskContext, task.Section, task.Title, task.Owner, task.Branch, task.Status, task.Body, roleInstructions)
 }
 
-// readFilteredTasks reads TASKS.md but reconstructs it without the "Done" section.
-func readFilteredTasks(path string) string {
-	data, err := os.ReadFile(path)
+func buildTaskContext(role string, activeTask Task) string {
+	tasks, err := readTasks(tasksFile)
 	if err != nil {
-		return fmt.Sprintf("[failed to read %s: %v]", path, err)
+		return fmt.Sprintf("[failed to read task context: %v]", err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	var keptLines []string
-	skipSection := false
+	var b strings.Builder
+	b.WriteString("Active task body is shown separately below. This context is summarized to save tokens.\n")
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
+	switch role {
+	case "Team Lead":
+		b.WriteString("\nBacklog:\n")
+		writeTaskSummaries(&b, tasks, func(task Task) bool {
+			return task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "")
+		})
 
-		// If we encounter a top-level heading, check if it's the "Done" section
-		if strings.HasPrefix(trimmed, "## ") && !strings.HasPrefix(trimmed, "### ") {
-			sectionName := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(trimmed, "## ")))
-			if sectionName == "done" || sectionName == "completed" {
-				skipSection = true
-			} else {
-				skipSection = false
+		b.WriteString("\nImplementation lanes:\n")
+		writeTaskSummaries(&b, tasks, func(task Task) bool {
+			return strings.HasSuffix(task.Section, "In Progress")
+		})
+
+	default:
+		b.WriteString("\nOther active implementation work:\n")
+		writeTaskSummaries(&b, tasks, func(task Task) bool {
+			if task.Title == activeTask.Title && task.Owner == activeTask.Owner && task.Branch == activeTask.Branch {
+				return false
+			}
+			return strings.HasSuffix(task.Section, "In Progress")
+		})
+
+		b.WriteString("\nBacklog titles:\n")
+		writeTaskSummaries(&b, tasks, func(task Task) bool {
+			return task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "")
+		})
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
+func writeTaskSummaries(b *strings.Builder, tasks []Task, include func(Task) bool) {
+	wrote := false
+	for _, task := range tasks {
+		if !include(task) {
+			continue
+		}
+
+		wrote = true
+		fmt.Fprintf(b, "- %s | Owner: %s | Branch: %s | Status: %s | %s\n",
+			task.Title,
+			emptyAs(task.Owner, "Unassigned"),
+			emptyAs(task.Branch, "(none)"),
+			emptyAs(task.Status, "(none)"),
+			taskSummary(task.Body),
+		)
+	}
+
+	if !wrote {
+		b.WriteString("- none\n")
+	}
+}
+
+func taskSummary(body string) string {
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) != "Outcome:" {
+			continue
+		}
+
+		for _, candidate := range lines[i+1:] {
+			trimmed := strings.TrimSpace(candidate)
+			if trimmed != "" {
+				return trimmed
 			}
 		}
-
-		if !skipSection {
-			keptLines = append(keptLines, line)
-		}
 	}
 
-	return strings.Join(keptLines, "\n")
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" ||
+			strings.HasPrefix(trimmed, "### ") ||
+			strings.HasPrefix(trimmed, "Owner:") ||
+			strings.HasPrefix(trimmed, "Branch:") ||
+			strings.HasPrefix(trimmed, "Status:") ||
+			strings.HasSuffix(trimmed, ":") {
+			continue
+		}
+		return trimmed
+	}
+	return "(no summary)"
 }
 
-func runCodex(ctx context.Context, workspace string, prompt string) {
+func emptyAs(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func runCodex(ctx context.Context, workspace string, prompt string) SessionOutcome {
 	logEvent("running codex in %s", workspace)
 
 	cmd := exec.CommandContext(
@@ -352,15 +469,27 @@ func runCodex(ctx context.Context, workspace string, prompt string) {
 
 	if ctx.Err() == context.Canceled {
 		logEvent("codex session cancelled in %s", workspace)
-		return
+		return sessionCancelled
 	}
 
 	if err != nil {
 		logEvent("codex failed in %s: %v", workspace, err)
-		return
+		return sessionFailed
 	}
 
 	logEvent("codex completed in %s", workspace)
+	return sessionCompleted
+}
+
+func taskFingerprint(task Task) string {
+	return strings.Join([]string{
+		task.Section,
+		task.Title,
+		task.Owner,
+		task.Branch,
+		task.Status,
+		task.Body,
+	}, "\x00")
 }
 
 func readTasks(path string) ([]Task, error) {
@@ -495,7 +624,7 @@ func logEvent(format string, args ...any) {
 
 func renderUI(tasks []Task, readErr error) {
 	mu.Lock()
-	rows := buildRows(tasks, running)
+	rows := buildRows(tasks, running, finished)
 	mu.Unlock()
 	latest := latestLogLine()
 
@@ -524,7 +653,7 @@ func renderUI(tasks []Task, readErr error) {
 	fmt.Print(b.String())
 }
 
-func buildRows(tasks []Task, sessions map[string]RunningSession) []struct {
+func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSessions map[string]FinishedSession) []struct {
 	marker string
 	role   string
 	status string
@@ -548,12 +677,17 @@ func buildRows(tasks []Task, sessions map[string]RunningSession) []struct {
 			rows[i].marker = ">"
 			rows[i].status = "running"
 			rows[i].task = session.Task
+			rows[i].branch = session.Branch
 			continue
 		}
 
 		task := findDesiredTaskForRole(tasks, rows[i].role)
 		if task.Title != "" {
-			rows[i].status = task.Status
+			if finishedSession, ok := finishedSessions[rows[i].role]; ok && finishedSession.TaskKey == taskFingerprint(task) {
+				rows[i].status = string(finishedSession.Outcome)
+			} else {
+				rows[i].status = task.Status
+			}
 			rows[i].task = task.Title
 			rows[i].branch = task.Branch
 			continue
@@ -618,6 +752,10 @@ func colorStatus(status string) string {
 		return "\x1b[33mbacklog pending\x1b[0m"
 	case status == "In Progress":
 		return "\x1b[36mIn Progress\x1b[0m"
+	case status == "completed":
+		return "\x1b[32mcompleted\x1b[0m"
+	case status == "failed":
+		return "\x1b[31mfailed\x1b[0m"
 	case status == "Backlog":
 		return "\x1b[90mBacklog\x1b[0m"
 	default:
