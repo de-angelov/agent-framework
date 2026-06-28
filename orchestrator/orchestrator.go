@@ -102,25 +102,46 @@ func mustResolveRepoRoot() string {
 
 func reconcile(tasks []Task) {
 	desired := map[string]Task{}
+	invalidRoles := map[string]bool{}
 	var backlogTask *Task
+	addDesired := func(role string, task Task) {
+		if invalidRoles[role] {
+			return
+		}
+		if existing, exists := desired[role]; exists {
+			logEvent("TASKS board error: multiple In Progress tasks for %s (%q and %q); refusing to start role", role, existing.Title, task.Title)
+			delete(desired, role)
+			invalidRoles[role] = true
+			return
+		}
+		desired[role] = task
+	}
 
 	for _, task := range tasks {
 		switch {
 		case task.Section == "Agent 1 In Progress" &&
 			task.Owner == "Agent 1" &&
 			task.Status == "In Progress":
-			desired["Agent 1"] = task
+			addDesired("Agent 1", task)
 
 		case task.Section == "Agent 2 In Progress" &&
 			task.Owner == "Agent 2" &&
 			task.Status == "In Progress":
-			desired["Agent 2"] = task
+			addDesired("Agent 2", task)
 
 		case task.Section == "Backlog" && backlogTask == nil:
 			if task.Status == "Backlog" || task.Status == "" {
 				copy := task
 				backlogTask = &copy
 			}
+		}
+	}
+
+	if backlogTask != nil && len(invalidRoles) == 0 {
+		_, agent1Busy := desired["Agent 1"]
+		_, agent2Busy := desired["Agent 2"]
+		if agent1Busy && agent2Busy {
+			backlogTask = nil
 		}
 	}
 
@@ -150,7 +171,7 @@ func reconcile(tasks []Task) {
 	for role, task := range desired {
 		taskKey := taskFingerprint(task)
 
-		if role != "Team Lead" && !workspaceExists(role) {
+		if !workspaceExists(role) {
 			logEvent("skipping %s because workspace is missing", role)
 			continue
 		}
@@ -242,12 +263,9 @@ func runAgent(ctx context.Context, role string, workspace string, task Task) Ses
 	logEvent("starting %s on %s in %s", role, task.Title, workspace)
 
 	if task.Branch != "" {
-		runGit(workspace, "fetch", "--all", "--prune")
-		if branchExists(workspace, task.Branch) {
-			runGit(workspace, "checkout", task.Branch)
-			runGit(workspace, "pull", "--rebase", "origin", task.Branch)
-		} else {
-			logEvent("branch does not exist yet; letting agent create: %s", task.Branch)
+		if err := prepareBranch(workspace, task.Branch); err != nil {
+			logEvent("failed to prepare branch %s in %s: %v", task.Branch, workspace, err)
+			return sessionFailed
 		}
 	}
 
@@ -264,6 +282,7 @@ Rules:
 - Do not modify backlog priority.
 - Do not approve your own work.
 - Keep changes focused.
+- The orchestrator already prepared your assigned branch.
 - Write or update tests where appropriate.
 - Run focused verification.
 - Commit your completed work.
@@ -461,11 +480,17 @@ func runCodex(ctx context.Context, workspace string, prompt string) SessionOutco
 	)
 
 	cmd.Dir = workspace
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	err := cmd.Run()
+	logOutput, err := openLogOutput()
+	if err != nil {
+		return sessionFailed
+	}
+	defer logOutput.Close()
+	cmd.Stdout = logOutput
+	cmd.Stderr = logOutput
+
+	err = cmd.Run()
 
 	if ctx.Err() == context.Canceled {
 		logEvent("codex session cancelled in %s", workspace)
@@ -575,12 +600,67 @@ func runGit(workspace string, args ...string) {
 
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workspace
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	logOutput, err := openLogOutput()
+	if err == nil {
+		defer logOutput.Close()
+		cmd.Stdout = logOutput
+		cmd.Stderr = logOutput
+	}
 
 	if err := cmd.Run(); err != nil {
 		logEvent("git failed in %s: %v", workspace, err)
 	}
+}
+
+func prepareBranch(workspace string, branch string) error {
+	if err := runGitChecked(workspace, "fetch", "--all", "--prune"); err != nil {
+		return err
+	}
+
+	if branchExists(workspace, branch) {
+		if err := runGitChecked(workspace, "checkout", branch); err != nil {
+			return err
+		}
+		if remoteBranchExists(workspace, "origin/"+branch) {
+			return runGitChecked(workspace, "pull", "--rebase", "origin", branch)
+		}
+		return runGitChecked(workspace, "push", "-u", "origin", branch)
+	}
+
+	remoteRef := "origin/" + branch
+	if remoteBranchExists(workspace, remoteRef) {
+		return runGitChecked(workspace, "checkout", "-B", branch, remoteRef)
+	}
+
+	if err := runGitChecked(workspace, "checkout", "main"); err != nil {
+		return err
+	}
+	if err := runGitChecked(workspace, "pull", "--rebase", "origin", "main"); err != nil {
+		return err
+	}
+	if err := runGitChecked(workspace, "checkout", "-b", branch); err != nil {
+		return err
+	}
+	return runGitChecked(workspace, "push", "-u", "origin", branch)
+}
+
+func runGitChecked(workspace string, args ...string) error {
+	logEvent("git %s [%s]", strings.Join(args, " "), workspace)
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workspace
+	logOutput, err := openLogOutput()
+	if err != nil {
+		return err
+	}
+	defer logOutput.Close()
+	cmd.Stdout = logOutput
+	cmd.Stderr = logOutput
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
+	}
+	return nil
 }
 
 func branchExists(dir string, branch string) bool {
@@ -605,16 +685,18 @@ func mustMkdir(path string) {
 	}
 }
 
+func openLogOutput() (*os.File, error) {
+	return os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+}
+
 func logEvent(format string, args ...any) {
 	logMu.Lock()
 	defer logMu.Unlock()
 
 	line := fmt.Sprintf("%s %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
-	fmt.Print(line)
 
-	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := openLogOutput()
 	if err != nil {
-		fmt.Println("log write failed:", err)
 		return
 	}
 	defer f.Close()
@@ -681,6 +763,15 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 			continue
 		}
 
+		if rows[i].role == "Agent 1" || rows[i].role == "Agent 2" {
+			activeTasks := activeTasksForRole(tasks, rows[i].role)
+			if len(activeTasks) > 1 {
+				rows[i].status = "board error"
+				rows[i].task = fmt.Sprintf("%d active tasks", len(activeTasks))
+				continue
+			}
+		}
+
 		task := findDesiredTaskForRole(tasks, rows[i].role)
 		if task.Title != "" {
 			if finishedSession, ok := finishedSessions[rows[i].role]; ok && finishedSession.TaskKey == taskFingerprint(task) {
@@ -693,8 +784,12 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 			continue
 		}
 
-		if rows[i].role == "Team Lead" && hasBacklog(tasks) {
+		if rows[i].role == "Team Lead" && hasBoardError(tasks) {
+			rows[i].status = "board error"
+		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) && lanesHaveCapacity(tasks) {
 			rows[i].status = "backlog pending"
+		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) {
+			rows[i].status = "waiting for lane"
 		} else {
 			rows[i].status = "idle"
 		}
@@ -704,32 +799,59 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 }
 
 func findDesiredTaskForRole(tasks []Task, role string) Task {
-	for _, task := range tasks {
-		switch role {
-		case "Agent 1":
-			if task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "In Progress" {
-				return task
-			}
-		case "Agent 2":
-			if task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "In Progress" {
-				return task
-			}
-		case "Team Lead":
-			if task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "") {
-				return task
-			}
+	switch role {
+	case "Agent 1", "Agent 2":
+		activeTasks := activeTasksForRole(tasks, role)
+		if len(activeTasks) == 1 {
+			return activeTasks[0]
 		}
+	case "Team Lead":
+		if hasBoardError(tasks) || !lanesHaveCapacity(tasks) {
+			return Task{}
+		}
+		return firstBacklogTask(tasks)
 	}
 	return Task{}
 }
 
-func hasBacklog(tasks []Task) bool {
+func activeTasksForRole(tasks []Task, role string) []Task {
+	var active []Task
 	for _, task := range tasks {
-		if task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "") {
-			return true
+		switch role {
+		case "Agent 1":
+			if task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "In Progress" {
+				active = append(active, task)
+			}
+		case "Agent 2":
+			if task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "In Progress" {
+				active = append(active, task)
+			}
 		}
 	}
-	return false
+	return active
+}
+
+func hasBoardError(tasks []Task) bool {
+	return len(activeTasksForRole(tasks, "Agent 1")) > 1 ||
+		len(activeTasksForRole(tasks, "Agent 2")) > 1
+}
+
+func lanesHaveCapacity(tasks []Task) bool {
+	return len(activeTasksForRole(tasks, "Agent 1")) == 0 ||
+		len(activeTasksForRole(tasks, "Agent 2")) == 0
+}
+
+func hasBacklog(tasks []Task) bool {
+	return firstBacklogTask(tasks).Title != ""
+}
+
+func firstBacklogTask(tasks []Task) Task {
+	for _, task := range tasks {
+		if task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "") {
+			return task
+		}
+	}
+	return Task{}
 }
 
 func truncate(s string, limit int) string {
@@ -750,6 +872,10 @@ func colorStatus(status string) string {
 		return "\x1b[90midle\x1b[0m"
 	case status == "backlog pending":
 		return "\x1b[33mbacklog pending\x1b[0m"
+	case status == "waiting for lane":
+		return "\x1b[90mwaiting for lane\x1b[0m"
+	case status == "board error":
+		return "\x1b[31mboard error\x1b[0m"
 	case status == "In Progress":
 		return "\x1b[36mIn Progress\x1b[0m"
 	case status == "completed":

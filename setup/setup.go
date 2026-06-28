@@ -42,6 +42,7 @@ func createClone(root, dir string) {
 	if _, err := os.Stat(path); err == nil {
 		fmt.Println("• exists:", dir)
 		ensureSSHRemote(path)
+		ensureMainBranch(path)
 		removeWorkspaceTaskBoard(path)
 		return
 	}
@@ -49,12 +50,21 @@ func createClone(root, dir string) {
 	run(root, "git", "clone", defaultRepoURL, dir)
 	fmt.Println("✓ clone:", dir)
 	ensureSSHRemote(path)
+	ensureMainBranch(path)
 	removeWorkspaceTaskBoard(path)
 }
 
 func ensureSSHRemote(repoPath string) {
 	run(repoPath, "git", "remote", "set-url", "origin", defaultRepoSSHURL)
 	fmt.Println("✓ remote:", defaultRepoSSHURL)
+}
+
+func ensureMainBranch(repoPath string) {
+	run(repoPath, "git", "fetch", "origin", "main")
+	run(repoPath, "git", "remote", "set-head", "origin", "main")
+	run(repoPath, "git", "checkout", "main")
+	run(repoPath, "git", "branch", "--set-upstream-to", "origin/main", "main")
+	fmt.Println("✓ default branch: main")
 }
 
 func removeWorkspaceTaskBoard(repoPath string) {
