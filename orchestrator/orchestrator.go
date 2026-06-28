@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -143,6 +144,10 @@ func reconcile(tasks []Task) {
 		if agent1Busy && agent2Busy {
 			backlogTask = nil
 		}
+	}
+
+	if backlogTask != nil && len(invalidRoles) > 0 {
+		backlogTask = nil
 	}
 
 	if backlogTask != nil {
@@ -288,7 +293,9 @@ Rules:
 - Commit your completed work.
 - Push your branch.
 - Squash-merge your branch into product main when done.
-- Move this task to Done and set Status: Done when complete.
+- Update only this task's progress, verification, and merge notes in TASKS.md.
+- After verification, squash-merge, and push are complete, move only this task to Done, set Status: Done, and add Completed: YYYY-MM-DD.
+- Do not move any other task between TASKS.md sections.
 `)
 
 	return runCodex(ctx, workspace, prompt)
@@ -309,7 +316,9 @@ Rules:
 - Follow TECH.md.
 - Keep UI styling minimal until core workflows are complete.
 - Verify that default styling stays limited to flexbox layouts, padding: 10px, and border: 1px solid grey.
+- Manage TASKS.md as the single source of truth.
 - If the active task is in Backlog, groom it into the correct Agent 1 or Agent 2 lane, set Owner, Branch, and Status: In Progress, and keep backlog priority sensible.
+- Implementation agents move their own completed merged tasks into Done.
 - Do not review implementation branches.
 - Do not merge agent branches.
 - Do not implement feature code during grooming.
@@ -613,6 +622,10 @@ func runGit(workspace string, args ...string) {
 }
 
 func prepareBranch(workspace string, branch string) error {
+	if err := checkpointDirtyWorkspace(workspace, branch); err != nil {
+		return err
+	}
+
 	if err := runGitChecked(workspace, "fetch", "--all", "--prune"); err != nil {
 		return err
 	}
@@ -642,6 +655,104 @@ func prepareBranch(workspace string, branch string) error {
 		return err
 	}
 	return runGitChecked(workspace, "push", "-u", "origin", branch)
+}
+
+func checkpointDirtyWorkspace(workspace string, nextBranch string) error {
+	if !workspaceHasChanges(workspace) && !mergeInProgress(workspace) {
+		return nil
+	}
+
+	current := currentBranchName(workspace)
+	if current == "" || current == "HEAD" {
+		current = "detached"
+	}
+
+	wipBranch := fmt.Sprintf(
+		"wip/orchestrator/%s/%s/%d",
+		sanitizeBranchPart(current),
+		sanitizeBranchPart(nextBranch),
+		time.Now().Unix(),
+	)
+
+	logEvent("checkpointing dirty workspace %s on %s before switching to %s", workspace, wipBranch, nextBranch)
+
+	if mergeInProgress(workspace) {
+		_ = runGitChecked(workspace, "merge", "--abort")
+		if mergeInProgress(workspace) {
+			return fmt.Errorf("workspace has unresolved merge state; manual cleanup required before switching tasks")
+		}
+	}
+
+	if err := runGitChecked(workspace, "checkout", "-b", wipBranch); err != nil {
+		return err
+	}
+	if err := runGitChecked(workspace, "add", "-A"); err != nil {
+		return err
+	}
+	if workspaceHasStagedChanges(workspace) {
+		if err := runGitChecked(workspace, "commit", "-m", "WIP before switching to "+nextBranch); err != nil {
+			return err
+		}
+		if err := runGitChecked(workspace, "push", "-u", "origin", wipBranch); err != nil {
+			return err
+		}
+		logEvent("saved dirty workspace to %s", wipBranch)
+		return nil
+	}
+
+	logEvent("dirty workspace resolved without commit while switching to %s", nextBranch)
+	return nil
+}
+
+func workspaceHasChanges(workspace string) bool {
+	out, err := gitOutput(workspace, "status", "--porcelain")
+	return err == nil && strings.TrimSpace(out) != ""
+}
+
+func workspaceHasStagedChanges(workspace string) bool {
+	cmd := exec.Command("git", "diff", "--cached", "--quiet")
+	cmd.Dir = workspace
+	return cmd.Run() != nil
+}
+
+func mergeInProgress(workspace string) bool {
+	out, err := gitOutput(workspace, "rev-parse", "-q", "--verify", "MERGE_HEAD")
+	return err == nil && strings.TrimSpace(out) != ""
+}
+
+func gitOutput(workspace string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workspace
+	out, err := cmd.Output()
+	return string(out), err
+}
+
+func sanitizeBranchPart(value string) string {
+	var b strings.Builder
+	lastSlash := false
+	for _, r := range strings.ToLower(value) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastSlash = false
+		case r == '/', r == '-', r == '_', r == '.':
+			if !lastSlash {
+				b.WriteRune('-')
+				lastSlash = true
+			}
+		default:
+			if !lastSlash {
+				b.WriteRune('-')
+				lastSlash = true
+			}
+		}
+	}
+
+	result := strings.Trim(b.String(), "-")
+	if result == "" {
+		return "unknown"
+	}
+	return strconv.Itoa(len(result)) + "-" + result
 }
 
 func runGitChecked(workspace string, args ...string) error {
@@ -786,10 +897,12 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 
 		if rows[i].role == "Team Lead" && hasBoardError(tasks) {
 			rows[i].status = "board error"
-		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) && lanesHaveCapacity(tasks) {
-			rows[i].status = "backlog pending"
 		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) {
-			rows[i].status = "waiting for lane"
+			if lanesHaveCapacity(tasks) {
+				rows[i].status = "backlog pending"
+			} else {
+				rows[i].status = "waiting for lane"
+			}
 		} else {
 			rows[i].status = "idle"
 		}

@@ -97,13 +97,15 @@ Responsibilities:
 - Commit focused changes
 - Push assigned branch
 - Update task status
-- Move completed work into **Done**
+- Move their completed task into **Done** after merge
 
 Implementation agents must **never**:
 
 - Reprioritize work
 - Approve their own work
 - Edit another agent's assigned branch
+- Move tasks between board sections except moving their own completed merged task to **Done**
+- Assign work
 
 ---
 
@@ -118,7 +120,7 @@ agent/1/login-page
 agent/2/dashboard
 ```
 
-Implementation agents squash-merge their completed work and move finished tasks into **Done**. The Team Lead only assigns new work.
+Implementation agents squash-merge their completed work, record verification and merge notes, and move their own completed task into **Done**. The Team Lead manages backlog grooming and assigns new work.
 
 Completed task branches must be merged into product `main` with a squash merge so `main` receives one final commit per task.
 
@@ -177,14 +179,15 @@ Implementation agents may update:
 - Implementation progress
 - Blocked notes
 - Task status
-- Move their completed task into **Done**
+- Move their own completed merged task into **Done**
 
 Implementation agents may **not**:
 
 - Reprioritize the backlog
 - Assign work
+- Move any task other than their own completed merged task
 
-Only implementation agents move their own completed work into **Done** after verification and merge.
+Only the Team Lead moves work from **Backlog** into agent lanes. Implementation agents may move only their own completed merged task into **Done**.
 
 Completed tasks must include an explicit timestamp:
 
@@ -223,6 +226,7 @@ Before marking work complete, implementation agents:
 
 After the implementation agent verifies, merges, and pushes the work:
 
+- The implementation agent records verification and merge notes in the task.
 - The implementation agent moves the task to **Done**.
 - The implementation agent sets `Status: Done`.
 - The implementation agent adds the completion date.
