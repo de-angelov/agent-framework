@@ -77,10 +77,19 @@ Responsible for:
 
 - Backlog grooming
 - Breaking milestones into tasks
+- Splitting new backlog work into the smallest practical dependency-ordered tasks before assignment
 - Assigning work
 - Assigning new work
 
 The Team Lead does **not** implement feature code unless explicitly instructed.
+
+When adding or grooming backlog items, the Team Lead must split broad work before assignment:
+
+- Put foundational work before tasks that depend on it.
+- Separate backend schema/services, API behavior, route/UI work, integrations, and follow-up enhancements when they can land independently.
+- Keep each task focused enough for one implementation branch and one focused verification pass.
+- Preserve explicit dependency notes in each task's Coordination section.
+- Do not assign a broad task when a smaller dependency-ordered split is practical.
 
 ---
 
@@ -201,6 +210,7 @@ Assign non-overlapping work whenever practical.
 
 Separate work by:
 
+- Foundations before dependent features
 - Features
 - Routes
 - Services
