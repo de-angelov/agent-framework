@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,8 @@ var (
 	mu      sync.Mutex
 	running = map[string]RunningSession{}
 	logMu   sync.Mutex
+
+	ansiColorRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 )
 
 type Task struct {
@@ -50,23 +53,20 @@ type RunningSession struct {
 
 func main() {
 	mustMkdir(logsRoot)
-	fmt.Println("orchestrator started")
-	fmt.Println("repo root:", repoRoot)
 	logEvent("orchestrator started")
 	logEvent("repo root: %s", repoRoot)
 
 	for {
 		tasks, err := readTasks(tasksFile)
 		if err != nil {
-			fmt.Println("failed to read TASKS.md:", err)
 			logEvent("failed to read TASKS.md: %v", err)
-			printStatusTable(nil)
+			renderUI(nil, err)
 			sleep()
 			continue
 		}
 
 		reconcile(tasks)
-		printStatusTable(tasks)
+		renderUI(tasks, nil)
 		sleep()
 	}
 }
@@ -87,17 +87,13 @@ func reconcile(tasks []Task) {
 		switch {
 		case task.Section == "Agent 1 In Progress" &&
 			task.Owner == "Agent 1" &&
-			task.Status == "Assigned":
+			task.Status == "In Progress":
 			desired["Agent 1"] = task
 
 		case task.Section == "Agent 2 In Progress" &&
 			task.Owner == "Agent 2" &&
-			task.Status == "Assigned":
+			task.Status == "In Progress":
 			desired["Agent 2"] = task
-
-		case task.Section == "Ready For Review" &&
-			task.Status == "Ready For Review":
-			desired["Team Lead"] = task
 
 		case task.Section == "Backlog" && backlogTask == nil:
 			if task.Status == "Backlog" || task.Status == "" {
@@ -107,7 +103,7 @@ func reconcile(tasks []Task) {
 		}
 	}
 
-	if _, hasActiveReview := desired["Team Lead"]; !hasActiveReview && backlogTask != nil {
+	if backlogTask != nil {
 		desired["Team Lead"] = *backlogTask
 	}
 
@@ -116,7 +112,6 @@ func reconcile(tasks []Task) {
 		task, stillDesired := desired[role]
 
 		if !stillDesired || task.Title != session.Task {
-			fmt.Println("stopping", role, "because TASKS.md changed")
 			logEvent("stopping %s because TASKS.md changed", role)
 			session.Cancel()
 			delete(running, role)
@@ -126,7 +121,6 @@ func reconcile(tasks []Task) {
 
 	for role, task := range desired {
 		if role != "Team Lead" && !workspaceExists(role) {
-			fmt.Println("skipping", role, "because workspace is missing")
 			logEvent("skipping %s because workspace is missing", role)
 			continue
 		}
@@ -192,7 +186,6 @@ func startSession(role string, task Task) {
 }
 
 func runAgent(ctx context.Context, role string, workspace string, task Task) {
-	fmt.Println("starting", role, "on", task.Title)
 	logEvent("starting %s on %s in %s", role, task.Title, workspace)
 
 	if task.Branch != "" {
@@ -201,7 +194,6 @@ func runAgent(ctx context.Context, role string, workspace string, task Task) {
 			runGit(workspace, "checkout", task.Branch)
 			runGit(workspace, "pull", "--rebase", "origin", task.Branch)
 		} else {
-			fmt.Println("branch does not exist yet; letting agent create:", task.Branch)
 			logEvent("branch does not exist yet; letting agent create: %s", task.Branch)
 		}
 	}
@@ -217,26 +209,25 @@ Rules:
 - Do not add custom fonts, shadows, gradients, rounded corners, or decorative spacing unless explicitly required.
 - Work only on your assigned task.
 - Do not modify backlog priority.
-- Do not move tasks into Done.
-- Do not merge branches.
 - Do not approve your own work.
 - Keep changes focused.
 - Write or update tests where appropriate.
 - Run focused verification.
 - Commit your completed work.
 - Push your branch.
-- Move this task to the Ready For Review section and set Status: Ready For Review when complete.
+- Merge your branch when done.
+- Move this task to Done and set Status: Done when complete.
 `)
 
 	runCodex(ctx, workspace, prompt)
 }
 
 func runTeamLead(ctx context.Context, task Task) {
-	fmt.Println("starting Team Lead review for", task.Title)
-
 	runGit(teamLeadPath, "fetch", "--all", "--prune")
-	runGit(teamLeadPath, "checkout", "main")
-	runGit(teamLeadPath, "pull", "--rebase", "origin", "main")
+	currentBranch := currentBranchName(teamLeadPath)
+	if currentBranch != "" {
+		logEvent("team lead branch: %s", currentBranch)
+	}
 
 	prompt := buildPrompt("Team Lead", task, `
 You are the Team Lead.
@@ -246,19 +237,25 @@ Rules:
 - Follow TECH.md.
 - Keep UI styling minimal until core workflows are complete.
 - Verify that default styling stays limited to flexbox layouts, padding: 10px, and border: 1px solid grey.
-- If the active task is in Backlog, groom it into the correct Agent 1 or Agent 2 lane, set Owner, Branch, and Status: Assigned, and keep backlog priority sensible.
-- If the active task is in Ready For Review, review the implementation branch.
-- Fetch and inspect the implementation branch before review.
-- Run full verification before approval.
-- If approved, merge to main and move the task to Done.
-- Add Completed: YYYY-MM-DD when moving to Done.
-- If rejected, return the task to the assigned agent lane and add a [REJECTED] section.
-- Do not implement feature code during review.
-- Do not silently resolve merge conflicts.
+- If the active task is in Backlog, groom it into the correct Agent 1 or Agent 2 lane, set Owner, Branch, and Status: In Progress, and keep backlog priority sensible.
+- Do not review implementation branches.
+- Do not merge agent branches.
+- Do not implement feature code during grooming.
 - Assign a new non-overlapping task from Backlog if appropriate.
 `)
 
 	runCodex(ctx, teamLeadPath, prompt)
+}
+
+func currentBranchName(workspace string) string {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = workspace
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
 }
 
 func buildPrompt(role string, task Task, roleInstructions string) string {
@@ -336,7 +333,7 @@ func readFilteredTasks(path string) string {
 }
 
 func runCodex(ctx context.Context, workspace string, prompt string) {
-	fmt.Println("running codex in", workspace)
+	logEvent("running codex in %s", workspace)
 
 	cmd := exec.CommandContext(
 		ctx,
@@ -354,13 +351,11 @@ func runCodex(ctx context.Context, workspace string, prompt string) {
 	err := cmd.Run()
 
 	if ctx.Err() == context.Canceled {
-		fmt.Println("codex session cancelled in", workspace)
 		logEvent("codex session cancelled in %s", workspace)
 		return
 	}
 
 	if err != nil {
-		fmt.Println("codex failed:", err)
 		logEvent("codex failed in %s: %v", workspace, err)
 		return
 	}
@@ -447,7 +442,6 @@ func mustRead(path string) string {
 }
 
 func runGit(workspace string, args ...string) {
-	fmt.Println("git", strings.Join(args, " "))
 	logEvent("git %s [%s]", strings.Join(args, " "), workspace)
 
 	cmd := exec.Command("git", args...)
@@ -456,13 +450,18 @@ func runGit(workspace string, args ...string) {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Println("git failed:", err)
 		logEvent("git failed in %s: %v", workspace, err)
 	}
 }
 
 func branchExists(dir string, branch string) bool {
 	cmd := exec.Command("git", "show-ref", "--verify", "refs/heads/"+branch)
+	cmd.Dir = dir
+	return cmd.Run() == nil
+}
+
+func remoteBranchExists(dir string, ref string) bool {
+	cmd := exec.Command("git", "show-ref", "--verify", "refs/remotes/"+ref)
 	cmd.Dir = dir
 	return cmd.Run() == nil
 }
@@ -477,24 +476,76 @@ func mustMkdir(path string) {
 	}
 }
 
-func printStatusTable(tasks []Task) {
-	mu.Lock()
-	defer mu.Unlock()
+func logEvent(format string, args ...any) {
+	logMu.Lock()
+	defer logMu.Unlock()
 
+	line := fmt.Sprintf("%s %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
+	fmt.Print(line)
+
+	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Println("log write failed:", err)
+		return
+	}
+	defer f.Close()
+
+	_, _ = f.WriteString(line)
+}
+
+func renderUI(tasks []Task, readErr error) {
+	mu.Lock()
+	rows := buildRows(tasks, running)
+	mu.Unlock()
+	latest := latestLogLine()
+
+	var b strings.Builder
+	b.WriteString("\x1b[2J\x1b[H")
+	b.WriteString("Orchestrator\n")
+	b.WriteString("Board: " + filepath.Base(repoRoot) + "\n")
+	b.WriteString("Time: " + time.Now().Format(time.RFC3339) + "\n")
+	if readErr != nil {
+		b.WriteString("TASKS error: " + readErr.Error() + "\n")
+	}
+	b.WriteString("\n")
+	b.WriteString("ROLE       STATUS            TASK                           BRANCH\n")
+	b.WriteString("---------  ----------------  -----------------------------  ------------------------------\n")
+	for _, row := range rows {
+		b.WriteString(fmt.Sprintf("%s %-9s %-16s %-29s %s\n",
+			row.marker,
+			row.role,
+			colorStatus(row.status),
+			truncate(row.task, 29),
+			truncate(row.branch, 30)))
+	}
+	b.WriteString("\n")
+	b.WriteString("Latest: " + latest + "\n")
+	b.WriteString("Logs: " + logFilePath + "\n")
+	fmt.Print(b.String())
+}
+
+func buildRows(tasks []Task, sessions map[string]RunningSession) []struct {
+	marker string
+	role   string
+	status string
+	task   string
+	branch string
+} {
 	rows := []struct {
-		role      string
-		status    string
-		task      string
-		branch    string
-		workspace string
+		marker string
+		role   string
+		status string
+		task   string
+		branch string
 	}{
-		{role: "Team Lead", workspace: teamLeadPath},
-		{role: "Agent 1", workspace: agent1Path},
-		{role: "Agent 2", workspace: agent2Path},
+		{role: "Team Lead"},
+		{role: "Agent 1"},
+		{role: "Agent 2"},
 	}
 
 	for i := range rows {
-		if session, ok := running[rows[i].role]; ok {
+		if session, ok := sessions[rows[i].role]; ok {
+			rows[i].marker = ">"
 			rows[i].status = "running"
 			rows[i].task = session.Task
 			continue
@@ -505,36 +556,32 @@ func printStatusTable(tasks []Task) {
 			rows[i].status = task.Status
 			rows[i].task = task.Title
 			rows[i].branch = task.Branch
-		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) {
+			continue
+		}
+
+		if rows[i].role == "Team Lead" && hasBacklog(tasks) {
 			rows[i].status = "backlog pending"
 		} else {
 			rows[i].status = "idle"
 		}
 	}
 
-	fmt.Println()
-	fmt.Println("Current Work")
-	fmt.Println("ROLE      | STATUS          | TASK                          | BRANCH")
-	fmt.Println("----------+-----------------+-------------------------------+------------------------------")
-	for _, row := range rows {
-		fmt.Printf("%-9s | %-15s | %-29s | %s\n", row.role, truncate(row.status, 15), truncate(row.task, 29), row.branch)
-	}
-	fmt.Println()
+	return rows
 }
 
 func findDesiredTaskForRole(tasks []Task, role string) Task {
 	for _, task := range tasks {
 		switch role {
 		case "Agent 1":
-			if task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "Assigned" {
+			if task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "In Progress" {
 				return task
 			}
 		case "Agent 2":
-			if task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "Assigned" {
+			if task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "In Progress" {
 				return task
 			}
 		case "Team Lead":
-			if task.Section == "Ready For Review" && task.Status == "Ready For Review" {
+			if task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "") {
 				return task
 			}
 		}
@@ -561,19 +608,34 @@ func truncate(s string, limit int) string {
 	return s[:limit-3] + "..."
 }
 
-func logEvent(format string, args ...any) {
-	logMu.Lock()
-	defer logMu.Unlock()
-
-	line := fmt.Sprintf("%s %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
-	fmt.Print(line)
-
-	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		fmt.Println("log write failed:", err)
-		return
+func colorStatus(status string) string {
+	switch {
+	case status == "running":
+		return "\x1b[32mrunning\x1b[0m"
+	case status == "idle":
+		return "\x1b[90midle\x1b[0m"
+	case status == "backlog pending":
+		return "\x1b[33mbacklog pending\x1b[0m"
+	case status == "In Progress":
+		return "\x1b[36mIn Progress\x1b[0m"
+	case status == "Backlog":
+		return "\x1b[90mBacklog\x1b[0m"
+	default:
+		return status
 	}
-	defer f.Close()
+}
 
-	_, _ = f.WriteString(line)
+func latestLogLine() string {
+	data, err := os.ReadFile(logFilePath)
+	if err != nil {
+		return "[no log]"
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) == 0 {
+		return "[no log]"
+	}
+
+	last := ansiColorRe.ReplaceAllString(lines[len(lines)-1], "")
+	return last
 }

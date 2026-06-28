@@ -15,6 +15,15 @@ These instructions define how AI agents collaborate within this repository.
 
 The repository uses three coordination documents.
 
+## Repository Boundaries
+
+There are two separate git repositories involved in this workflow:
+
+- The top-level `agent-framework` repository contains the orchestrator, coordination logic, logs, and shared workflow instructions.
+- The actual product repository is checked out separately inside `workspaces/repo-tl`, `workspaces/repo-agent-1`, and `workspaces/repo-agent-2`.
+
+When answering whether product work is merged, verified, or complete, inspect the product repository workspace. Do not infer product merge status from the top-level `agent-framework` git history.
+
 ## AGENTS.md
 
 Defines:
@@ -22,7 +31,6 @@ Defines:
 - Roles
 - Workflow
 - Git process
-- Review process
 - Task lifecycle
 
 ## TECH.md
@@ -45,7 +53,6 @@ Contains:
 - Backlog
 - Agent 1 In Progress
 - Agent 2 In Progress
-- Ready For Review
 - Done
 
 ---
@@ -71,11 +78,6 @@ Responsible for:
 - Backlog grooming
 - Breaking milestones into tasks
 - Assigning work
-- Architecture review
-- Implementation review
-- Verification
-- Merging approved work
-- Moving tasks into **Done**
 - Assigning new work
 
 The Team Lead does **not** implement feature code unless explicitly instructed.
@@ -95,13 +97,12 @@ Responsibilities:
 - Commit focused changes
 - Push assigned branch
 - Update task status
+- Move completed work into **Done**
 
 Implementation agents must **never**:
 
 - Reprioritize work
-- Merge branches
 - Approve their own work
-- Move tasks into **Done**
 - Edit another agent's assigned branch
 
 ---
@@ -117,7 +118,7 @@ agent/1/login-page
 agent/2/dashboard
 ```
 
-Only the Team Lead merges into `main`. Implementation agents never work directly on `main`.
+Implementation agents merge their completed work and move finished tasks into **Done**. The Team Lead only assigns new work.
 
 ---
 
@@ -132,7 +133,7 @@ Active workspaces:
 - `workspaces/repo-agent-1` (Agent 1 workspace)
 - `workspaces/repo-agent-2` (Agent 2 workspace)
 
-Implementation occurs only inside implementation workspaces. The Team Lead performs reviews and merges inside the Team Lead workspace.
+Implementation and merges occur only inside implementation workspaces. The Team Lead uses the Team Lead workspace for planning and coordination checks only.
 
 ---
 
@@ -151,7 +152,7 @@ Every task must follow this exact format:
 
 Owner: Agent 1
 Branch: agent/1/branch-name
-Status: Assigned
+Status: In Progress
 
 [Task Scope, Body, and Progress Notes Go Here]
 ```
@@ -161,10 +162,11 @@ Track only meaningful work. Do **not** track formatting changes, temporary debug
 ## Task Lifecycle
 
 ```text
-Backlog → Assigned → In Progress → Ready For Review → Done
+Backlog → In Progress → Done
 ```
 
-Rejected work returns to the assigned implementation lane.
+Backlog work becomes active by moving the task into the appropriate agent lane and setting `Status: In Progress`.
+Rejected or blocked work stays in its implementation lane until fixed or reassigned by the Team Lead.
 
 ## Board Updates
 
@@ -173,14 +175,14 @@ Implementation agents may update:
 - Implementation progress
 - Blocked notes
 - Task status
+- Move their completed task into **Done**
 
 Implementation agents may **not**:
 
 - Reprioritize the backlog
 - Assign work
-- Move tasks into **Done**
 
-Only the Team Lead moves completed work into **Done**.
+Only implementation agents move their own completed work into **Done** after verification and merge.
 
 Completed tasks must include an explicit timestamp:
 
@@ -207,29 +209,32 @@ If another active task owns required files:
 2. Document the dependency.
 3. Request Team Lead coordination.
 
-## Review Workflow
+## Completion Workflow
 
-When work reaches **Ready For Review**, the Team Lead:
+Before marking work complete, implementation agents:
 
-1. Reviews the implementation.
-2. Runs verification defined in `TECH.md`.
-3. Accepts or rejects the work.
+1. Run verification defined in `TECH.md`.
+2. Commit focused changes.
+3. Merge their completed branch into product `main`.
+4. Push the completed work.
+5. Update the task with verification and merge notes.
 
-If accepted:
+After the implementation agent verifies, merges, and pushes the work:
 
-- Merge the branch into `main`.
-- Update `TASKS.md` (move the task to **Done** and add the completion date).
-- Assign the next task.
+- The implementation agent moves the task to **Done**.
+- The implementation agent sets `Status: Done`.
+- The implementation agent adds the completion date.
+- The Team Lead may assign the next task.
 
-If rejected:
+If work cannot be completed or merged:
 
-- Return the task to its original implementation lane.
 - Append a `[REJECTED]` section to the task body containing:
   - Failing command
   - Exact output
   - Short explanation of what must be fixed
+- Keep the task in its original implementation lane.
 
-The Team Lead does **not** modify implementation code during a review.
+The Team Lead does **not** modify implementation code during completion handling.
 
 ---
 
@@ -241,7 +246,6 @@ Responsibilities:
 
 - Monitor `TASKS.md`
 - Launch implementation agents
-- Launch Team Lead reviews
 - Terminate obsolete sessions when task assignments change
 - Use `workspaces/repo-tl` as the Team Lead execution workspace; the top-level repo owns `TASKS.md`
 
