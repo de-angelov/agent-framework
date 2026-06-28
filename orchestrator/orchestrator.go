@@ -14,15 +14,16 @@ import (
 const pollInterval = 10 * time.Second
 
 var (
-	repoRoot, _ = filepath.Abs(".")
+	repoRoot       = mustResolveRepoRoot()
+	workspacesRoot = filepath.Dir(repoRoot)
 
-	tasksFile  = filepath.Join(repoRoot, "TASKS.md")
-	agentsFile = filepath.Join(repoRoot, "AGENTS.md")
-	techFile   = filepath.Join(repoRoot, "TECH.md")
+	tasksFile  = filepath.Join(repoRoot, "TASKS.MD")
+	agentsFile = filepath.Join(repoRoot, "AGENTS.MD")
+	techFile   = filepath.Join(repoRoot, "TECH.MD")
 
-	teamLeadPath = filepath.Join(repoRoot, ".worktrees", "tl")
-	agent1Path   = filepath.Join(repoRoot, ".worktrees", "agent-1")
-	agent2Path   = filepath.Join(repoRoot, ".worktrees", "agent-2")
+	teamLeadPath = repoRoot
+	agent1Path   = filepath.Join(workspacesRoot, "repo-agent-1")
+	agent2Path   = filepath.Join(workspacesRoot, "repo-agent-2")
 
 	// Protects the running sessions map from concurrent map read/write panics
 	mu      sync.Mutex
@@ -59,6 +60,21 @@ func main() {
 		reconcile(tasks)
 		sleep()
 	}
+}
+
+func mustResolveRepoRoot() string {
+	if root := os.Getenv("WORKSPACE_ROOT"); root != "" {
+		abs, err := filepath.Abs(root)
+		if err == nil {
+			return abs
+		}
+	}
+
+	abs, err := filepath.Abs(".")
+	if err != nil {
+		return "."
+	}
+	return abs
 }
 
 func reconcile(tasks []Task) {

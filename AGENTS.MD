@@ -127,9 +127,9 @@ Each role has its own workspace directory.
 
 Active workspaces:
 
-- `.worktrees/tl` (Team Lead workspace)
-- `.worktrees/agent-1` (Agent 1 workspace)
-- `.worktrees/agent-2` (Agent 2 workspace)
+- `workspaces/repo-tl` (Team Lead workspace)
+- `workspaces/repo-agent-1` (Agent 1 workspace)
+- `workspaces/repo-agent-2` (Agent 2 workspace)
 
 Implementation occurs only inside implementation workspaces. The Team Lead performs reviews and merges inside the Team Lead workspace.
 
@@ -242,6 +242,7 @@ Responsibilities:
 - Launch implementation agents
 - Launch Team Lead reviews
 - Terminate obsolete sessions when task assignments change
+- Use the repository clone in `workspaces/repo-tl` as the Team Lead workspace
 
 Agents never launch one another.
 

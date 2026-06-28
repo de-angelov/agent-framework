@@ -17,14 +17,13 @@ my-project/
 │
 ├── orchestrator.go
 │
-├── repo-tl/           ← Git worktree (main)
-│
-├── repo-agent-1/      ← Git worktree (agent/1/current-task)
-│
-└── repo-agent-2/      ← Git worktree (agent/2/current-task)
+└── workspaces/
+    ├── repo-tl/       ← Team Lead clone
+    ├── repo-agent-1/  ← Agent 1 clone
+    └── repo-agent-2/  ← Agent 2 clone
 ```
 
-Each `repo-*` directory is a separate Git worktree or clone of the same repository.
+Each `repo-*` directory is a separate clone of the same repository.
 
 ---
 
@@ -55,17 +54,38 @@ Example:
 
 # Step 2 — Start the Orchestrator
 
+Run the bootstrap first:
+
 ```bash
-cd orchestrator
+cd setup
+go run setup.go
+```
+
+Then start the Team Lead clone:
+
+```bash
+cd workspaces/repo-tl
 go run orchestrator.go
 ```
 
 Output:
 
 ```text
+Setting up AI development workflow...
+Root: /path/to/my-project
+✓ dir: workspaces
+...
+
+Setup complete.
+
+Next steps:
+  cd workspaces/repo-tl && go run orchestrator.go
+  cd workspaces/repo-agent-1 && go run orchestrator.go
+  cd workspaces/repo-agent-2 && go run orchestrator.go
+
 Orchestrator started...
 
-Watching TASKS.md...
+repo root: /path/to/my-project/workspaces/repo-tl
 ```
 
 Nothing happens because no work has been assigned.
@@ -130,7 +150,7 @@ On the next poll it sees:
 It starts Codex in:
 
 ```text
-repo-agent-1/
+workspaces/repo-agent-1/
 ```
 
 With the role:
@@ -181,7 +201,7 @@ Status: Ready For Review
 The orchestrator launches the Team Lead in:
 
 ```text
-repo-tl/
+workspaces/repo-tl/
 ```
 
 Role:
