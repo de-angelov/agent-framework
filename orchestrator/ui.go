@@ -13,6 +13,21 @@ func openLogOutput() (*os.File, error) {
 	return os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 }
 
+type lockedLogWriter struct{}
+
+func (w lockedLogWriter) Write(p []byte) (n int, err error) {
+	logMu.Lock()
+	defer logMu.Unlock()
+
+	f, err := openLogOutput()
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	return f.Write(p)
+}
+
 func logEvent(format string, args ...any) {
 	logMu.Lock()
 	defer logMu.Unlock()
@@ -31,6 +46,7 @@ func logEvent(format string, args ...any) {
 func renderUI(tasks []Task, readErr error) {
 	mu.Lock()
 	rows := buildRows(tasks, running, finished)
+	resourceStatus := codexResourceStatusLine()
 	mu.Unlock()
 
 	latest := latestLogLine()
@@ -40,6 +56,9 @@ func renderUI(tasks []Task, readErr error) {
 	b.WriteString("Orchestrator\n")
 	b.WriteString("Board: " + filepath.Base(repoRoot) + "\n")
 	b.WriteString("Time: " + time.Now().Format(time.RFC3339) + "\n")
+	if resourceStatus != "" {
+		b.WriteString("Codex: " + resourceStatus + "\n")
+	}
 
 	if readErr != nil {
 		b.WriteString("Board error: " + readErr.Error() + "\n")
@@ -212,11 +231,24 @@ func colorStatus(status string) string {
 		return "\x1b[32mcompleted\x1b[0m"
 	case "failed":
 		return "\x1b[31mfailed\x1b[0m"
+	case "rate limited":
+		return "\x1b[33mrate limited\x1b[0m"
 	case "Backlog":
 		return "\x1b[90mBacklog\x1b[0m"
 	default:
 		return status
 	}
+}
+
+func codexResourceStatusLine() string {
+	now := time.Now()
+	if !codexResourcePausedUntil.IsZero() && now.Before(codexResourcePausedUntil) {
+		return "paused until " + codexResourcePausedUntil.Format(time.RFC3339) + " (" + lastCodexStatusMessage + ")"
+	}
+	if lastCodexStatusMessage != "" {
+		return lastCodexStatusMessage
+	}
+	return ""
 }
 
 func latestLogLine() string {

@@ -30,11 +30,8 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Setup complete.")
-	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  cd workspaces/repo-tl && go run orchestrator.go")
-	fmt.Println("  cd workspaces/repo-agent-1 && go run orchestrator.go")
-	fmt.Println("  cd workspaces/repo-agent-2 && go run orchestrator.go")
+	fmt.Println("  go run ./orchestrator")
 }
 
 func createClone(root, dir string) {

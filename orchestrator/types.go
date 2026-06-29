@@ -9,6 +9,8 @@ import (
 )
 
 const pollInterval = 10 * time.Second
+const codexResourceRetryDelay = 5 * time.Hour
+const codexStatusCheckInterval = time.Minute
 
 var (
 	repoRoot       = mustResolveRepoRoot()
@@ -32,6 +34,10 @@ var (
 	running  = map[string]RunningSession{}
 	finished = map[string]FinishedSession{}
 	logMu    sync.Mutex
+
+	codexResourcePausedUntil time.Time
+	lastCodexStatusCheck     time.Time
+	lastCodexStatusMessage   string
 
 	fileCache = FileCache{
 		items: map[string]cachedFile{},
@@ -76,8 +82,9 @@ type FinishedSession struct {
 type SessionOutcome string
 
 const (
-	sessionCompleted SessionOutcome = "completed"
-	sessionFailed    SessionOutcome = "failed"
-	sessionCancelled SessionOutcome = "cancelled"
-	sessionUnknown   SessionOutcome = "unknown"
+	sessionCompleted   SessionOutcome = "completed"
+	sessionFailed      SessionOutcome = "failed"
+	sessionRateLimited SessionOutcome = "rate limited"
+	sessionCancelled   SessionOutcome = "cancelled"
+	sessionUnknown     SessionOutcome = "unknown"
 )

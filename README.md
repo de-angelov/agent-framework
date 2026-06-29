@@ -17,9 +17,9 @@ my-project/
 ├── TASKS.md           ← Active dev-agent lanes
 ├── ARCHIVE.md         ← Completed work history
 │
-├── setup.go           ← One-time bootstrap
+├── setup/             ← One-time bootstrap
 │
-├── orchestrator.go
+├── orchestrator/      ← Orchestrator implementation
 │
 └── workspaces/
     ├── repo-tl/       ← Team Lead Agent clone
@@ -77,7 +77,7 @@ go run setup.go
 Then start the orchestrator from the top-level repo:
 
 ```bash
-go run orchestrator.go
+go run ./orchestrator
 ```
 
 Output:
@@ -91,10 +91,7 @@ Root: /path/to/my-project
 Setup complete.
 
 Next steps:
-  go run orchestrator.go
-  cd workspaces/repo-tl && go run orchestrator.go
-  cd workspaces/repo-agent-1 && go run orchestrator.go
-  cd workspaces/repo-agent-2 && go run orchestrator.go
+  go run ./orchestrator
 
 Orchestrator started...
 

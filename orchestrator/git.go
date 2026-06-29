@@ -41,12 +41,8 @@ func runGit(workspace string, args ...string) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workspace
 
-	logOutput, err := openLogOutput()
-	if err == nil {
-		defer logOutput.Close()
-		cmd.Stdout = logOutput
-		cmd.Stderr = logOutput
-	}
+	cmd.Stdout = lockedLogWriter{}
+	cmd.Stderr = lockedLogWriter{}
 
 	if err := cmd.Run(); err != nil {
 		logEvent("git failed in %s: %v", workspace, err)
@@ -195,14 +191,8 @@ func runGitChecked(workspace string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workspace
 
-	logOutput, err := openLogOutput()
-	if err != nil {
-		return err
-	}
-	defer logOutput.Close()
-
-	cmd.Stdout = logOutput
-	cmd.Stderr = logOutput
+	cmd.Stdout = lockedLogWriter{}
+	cmd.Stderr = lockedLogWriter{}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
