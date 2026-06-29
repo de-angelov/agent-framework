@@ -42,15 +42,15 @@ func renderUI(tasks []Task, readErr error) {
 	b.WriteString("Time: " + time.Now().Format(time.RFC3339) + "\n")
 
 	if readErr != nil {
-		b.WriteString("TASKS error: " + readErr.Error() + "\n")
+		b.WriteString("Board error: " + readErr.Error() + "\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString("ROLE        STATUS           TASK                          BRANCH\n")
-	b.WriteString("---------  ----------------  -----------------------------  ------------------------------\n")
+	b.WriteString("ROLE             STATUS           TASK                          BRANCH\n")
+	b.WriteString("--------------   ----------------  -----------------------------  ------------------------------\n")
 
 	for _, row := range rows {
-		b.WriteString(fmt.Sprintf("%s %-9s %-16s %-29s %s\n",
+		b.WriteString(fmt.Sprintf("%s %-14s %-16s %-29s %s\n",
 			row.marker,
 			row.role,
 			colorStatus(row.status),
@@ -79,9 +79,9 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 		task   string
 		branch string
 	}{
-		{role: "Team Lead"},
-		{role: "Agent 1"},
-		{role: "Agent 2"},
+		{role: teamLeadRole},
+		{role: devAgent1Role},
+		{role: devAgent2Role},
 	}
 
 	for i := range rows {
@@ -93,7 +93,7 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 			continue
 		}
 
-		if rows[i].role == "Agent 1" || rows[i].role == "Agent 2" {
+		if rows[i].role == devAgent1Role || rows[i].role == devAgent2Role {
 			activeTasks := activeTasksForRole(tasks, rows[i].role)
 			if len(activeTasks) > 1 {
 				rows[i].status = "board error"
@@ -114,9 +114,9 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 			continue
 		}
 
-		if rows[i].role == "Team Lead" && hasBoardError(tasks) {
+		if rows[i].role == teamLeadRole && hasBoardError(tasks) {
 			rows[i].status = "board error"
-		} else if rows[i].role == "Team Lead" && hasBacklog(tasks) {
+		} else if rows[i].role == teamLeadRole && hasBacklog(tasks) {
 			if lanesHaveCapacity(tasks) {
 				rows[i].status = "backlog pending"
 			} else {
@@ -132,12 +132,12 @@ func buildRows(tasks []Task, sessions map[string]RunningSession, finishedSession
 
 func findDesiredTaskForRole(tasks []Task, role string) Task {
 	switch role {
-	case "Agent 1", "Agent 2":
+	case devAgent1Role, devAgent2Role:
 		activeTasks := activeTasksForRole(tasks, role)
 		if len(activeTasks) == 1 {
 			return activeTasks[0]
 		}
-	case "Team Lead":
+	case teamLeadRole:
 		if hasBoardError(tasks) || !lanesHaveCapacity(tasks) {
 			return Task{}
 		}
@@ -150,12 +150,12 @@ func activeTasksForRole(tasks []Task, role string) []Task {
 	var active []Task
 	for _, task := range tasks {
 		switch role {
-		case "Agent 1":
-			if task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "In Progress" {
+		case devAgent1Role:
+			if task.Section == "Dev Agent 1 In Progress" && task.Owner == devAgent1Role && task.Status == "In Progress" {
 				active = append(active, task)
 			}
-		case "Agent 2":
-			if task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "In Progress" {
+		case devAgent2Role:
+			if task.Section == "Dev Agent 2 In Progress" && task.Owner == devAgent2Role && task.Status == "In Progress" {
 				active = append(active, task)
 			}
 		}
@@ -164,11 +164,11 @@ func activeTasksForRole(tasks []Task, role string) []Task {
 }
 
 func hasBoardError(tasks []Task) bool {
-	return len(activeTasksForRole(tasks, "Agent 1")) > 1 || len(activeTasksForRole(tasks, "Agent 2")) > 1
+	return len(activeTasksForRole(tasks, devAgent1Role)) > 1 || len(activeTasksForRole(tasks, devAgent2Role)) > 1
 }
 
 func lanesHaveCapacity(tasks []Task) bool {
-	return len(activeTasksForRole(tasks, "Agent 1")) == 0 || len(activeTasksForRole(tasks, "Agent 2")) == 0
+	return len(activeTasksForRole(tasks, devAgent1Role)) == 0 || len(activeTasksForRole(tasks, devAgent2Role)) == 0
 }
 
 func hasBacklog(tasks []Task) bool {

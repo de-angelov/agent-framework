@@ -187,7 +187,7 @@ Place tests close to the code they validate whenever practical.
 
 # Verification
 
-Implementation agents must run relevant verification before hand-off.
+Dev agents must run relevant verification before hand-off.
 
 Typical commands:
 
@@ -210,7 +210,7 @@ Before hand-off remove:
 - commented-out code
 - temporary test files
 
-Team Lead verification:
+Team Lead Agent verification:
 
 - full typecheck
 - full test suite
@@ -264,14 +264,18 @@ If no task number exists, use the next sequential task number from the previous 
 
 # Project Workflow
 
-Use `TASKS.md` as the project source of truth.
+Use the coordination board files as the project source of truth:
+
+- `BACKLOG.md` for pending work
+- `TASKS.md` for active dev-agent lanes
+- `ARCHIVE.md` for completed work
 
 When starting a new implementation session:
 
-- determine whether the session is Agent 1 or Agent 2 before modifying the board
+- determine whether the session is Dev Agent 1 or Dev Agent 2 before modifying the board
 - move active work into the appropriate In Progress column
-- move completed work into Done with the completion date
-- record meaningful follow-up work in Backlog
+- move completed work into `ARCHIVE.md` with the completion date
+- record meaningful follow-up work in `BACKLOG.md`
 
 Track project features and milestones, not individual commands or minor edits.
 

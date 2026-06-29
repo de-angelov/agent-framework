@@ -16,9 +16,13 @@ var (
 	logsRoot       = filepath.Join(repoRoot, "logs")
 	logFilePath    = filepath.Join(logsRoot, "orchestrator.log")
 
-	tasksFile  = filepath.Join(repoRoot, "TASKS.md")
-	agentsFile = filepath.Join(repoRoot, "AGENTS.md")
-	techFile   = filepath.Join(repoRoot, "TECH.md")
+	backlogFile              = filepath.Join(repoRoot, "BACKLOG.md")
+	tasksFile                = filepath.Join(repoRoot, "TASKS.md")
+	archiveFile              = filepath.Join(repoRoot, "ARCHIVE.md")
+	agentsFile               = filepath.Join(repoRoot, "AGENTS.md")
+	devAgentInstructionsFile = filepath.Join(repoRoot, "DEV_AGENT.md")
+	tlAgentInstructionsFile  = filepath.Join(repoRoot, "TEAM_LEAD_AGENT.md")
+	techFile                 = filepath.Join(repoRoot, "TECH.md")
 
 	teamLeadPath = filepath.Join(workspacesRoot, "repo-tl")
 	agent1Path   = filepath.Join(workspacesRoot, "repo-agent-1")
@@ -34,6 +38,12 @@ var (
 	}
 
 	ansiColorRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+)
+
+const (
+	teamLeadRole  = "Team Lead Agent"
+	devAgent1Role = "Dev Agent 1"
+	devAgent2Role = "Dev Agent 2"
 )
 
 type Task struct {

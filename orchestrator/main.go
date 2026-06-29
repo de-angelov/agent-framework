@@ -13,9 +13,9 @@ func main() {
 	logEvent("repo root: %s", repoRoot)
 
 	for {
-		tasks, err := readTasks(tasksFile)
+		tasks, err := readBoardTasks()
 		if err != nil {
-			logEvent("failed to read TASKS.md: %v", err)
+			logEvent("failed to read board files: %v", err)
 			renderUI(nil, err)
 			sleep()
 			continue

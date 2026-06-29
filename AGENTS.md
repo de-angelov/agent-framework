@@ -1,280 +1,84 @@
 # AI Development Workflow
 
-These instructions define how AI agents collaborate within this repository.
-
-## Goals
-
-- Prevent duplicate work.
-- Maintain a single source of truth for project planning.
-- Keep implementation isolated.
-- Ensure completed work is verified before acceptance.
-
----
-
-# Repository Files
-
-The repository uses three coordination documents.
+Common rules for all roles in this repository.
 
 ## Repository Boundaries
 
-There are two separate git repositories involved in this workflow:
+- The top-level `agent-framework` repository owns orchestration, logs, workflow instructions, and coordination files.
+- The product repository is checked out separately in `workspaces/repo-tl`, `workspaces/repo-agent-1`, and `workspaces/repo-agent-2`.
+- Inspect product work in the product workspace. Do not infer product merge, verification, or completion status from top-level `agent-framework` git history.
 
-- The top-level `agent-framework` repository contains the orchestrator, coordination logic, logs, and shared workflow instructions.
-- The actual product repository is checked out separately inside `workspaces/repo-tl`, `workspaces/repo-agent-1`, and `workspaces/repo-agent-2`.
+## Coordination Files
 
-When answering whether product work is merged, verified, or complete, inspect the product repository workspace. Do not infer product merge status from the top-level `agent-framework` git history.
+- `BACKLOG.md`: pending unassigned work.
+- `TASKS.md`: live execution lanes only.
+- `ARCHIVE.md`: completed work history.
+- `AGENTS.md`: common workflow rules.
+- `DEV_AGENT.md`: dev agent role rules.
+- `TEAM_LEAD_AGENT.md`: team lead agent role rules.
+- `TECH.md`: product technical standards and verification.
 
-## AGENTS.md
+## Roles
 
-Defines:
+Each Codex session has exactly one active role selected by the orchestrator:
 
-- Roles
-- Workflow
-- Git process
-- Task lifecycle
+- Team Lead Agent
+- Dev Agent 1
+- Dev Agent 2
 
-## TECH.md
+Do not change roles unless explicitly instructed.
 
-Defines:
+## Task Format
 
-- Technology stack
-- Architecture
-- Coding standards
-- Testing
-- Verification
-- Project-specific engineering decisions
-
-## TASKS.md
-
-The single source of truth for project work.
-
-Contains:
-
-- Backlog
-- Agent 1 In Progress
-- Agent 2 In Progress
-- Done
-
----
-
-# Roles
-
-Each Codex session has exactly one active role.
-
-Available roles:
-
-- Team Lead
-- Agent 1
-- Agent 2
-
-The orchestrator selects the role. Do not change roles unless explicitly instructed.
-
----
-
-# Team Lead
-
-Responsible for:
-
-- Backlog grooming
-- Breaking milestones into tasks
-- Splitting new backlog work into the smallest practical dependency-ordered tasks before assignment
-- Assigning work
-- Assigning new work
-
-The Team Lead does **not** implement feature code unless explicitly instructed.
-
-When adding or grooming backlog items, the Team Lead must split broad work before assignment:
-
-- Put foundational work before tasks that depend on it.
-- Separate backend schema/services, API behavior, route/UI work, integrations, and follow-up enhancements when they can land independently.
-- Keep each task focused enough for one implementation branch and one focused verification pass.
-- Preserve explicit dependency notes in each task's Coordination section.
-- Do not assign a broad task when a smaller dependency-ordered split is practical.
-
----
-
-# Agent 1 / Agent 2
-
-Implementation agents.
-
-Responsibilities:
-
-- Implement assigned tasks
-- Update implementation progress
-- Write tests
-- Run verification
-- Commit focused changes
-- Push assigned branch
-- Update task status
-- Move their completed task into **Done** after merge
-
-Implementation agents must **never**:
-
-- Reprioritize work
-- Approve their own work
-- Edit another agent's assigned branch
-- Move tasks between board sections except moving their own completed merged task to **Done**
-- Assign work
-
----
-
-# Git Workflow
-
-Each implementation task uses its own branch.
-
-Example:
-
-```text
-agent/1/login-page
-agent/2/dashboard
-```
-
-Implementation agents squash-merge their completed work, record verification and merge notes, and move their own completed task into **Done**. The Team Lead manages backlog grooming and assigns new work.
-
-Completed task branches must be merged into product `main` with a squash merge so `main` receives one final commit per task.
-
----
-
-# Workspace Isolation
-
-Each role has its own workspace directory.
-The top-level repository owns `TASKS.md`; workspace clones are execution-only and do not keep separate boards.
-
-Active workspaces:
-
-- `workspaces/repo-tl` (Team Lead workspace)
-- `workspaces/repo-agent-1` (Agent 1 workspace)
-- `workspaces/repo-agent-2` (Agent 2 workspace)
-
-Implementation and merges occur only inside implementation workspaces. The Team Lead uses the Team Lead workspace for planning and coordination checks only.
-
----
-
-# Project Tracking & Syntax
-
-`TASKS.md` is the single source of truth.
-
-> **CRITICAL**
->
-> When reading or writing tasks, metadata fields must use strict plaintext line prefixes. Do **not** use Markdown bolding (such as `**Owner:**`) for metadata keys.
-
-Every task must follow this exact format:
+Task metadata must use strict plaintext line prefixes. Do not use Markdown bolding for metadata keys.
 
 ```markdown
 ### Task Title Here
 
-Owner: Agent 1
+Owner: Dev Agent 1
 Branch: agent/1/branch-name
 Status: In Progress
 
 [Task Scope, Body, and Progress Notes Go Here]
 ```
 
-Track only meaningful work. Do **not** track formatting changes, temporary debugging, exploratory edits, or routine commands.
+Track meaningful project work only. Do not track formatting changes, temporary debugging, exploratory edits, or routine commands.
 
-## Task Lifecycle
-
-```text
-Backlog → In Progress → Done
-```
-
-Backlog work becomes active by moving the task into the appropriate agent lane and setting `Status: In Progress`.
-Rejected or blocked work stays in its implementation lane until fixed or reassigned by the Team Lead.
-
-## Board Updates
-
-Implementation agents may update:
-
-- Implementation progress
-- Blocked notes
-- Task status
-- Move their own completed merged task into **Done**
-
-Implementation agents may **not**:
-
-- Reprioritize the backlog
-- Assign work
-- Move any task other than their own completed merged task
-
-Only the Team Lead moves work from **Backlog** into agent lanes. Implementation agents may move only their own completed merged task into **Done**.
-
-Completed tasks must include an explicit timestamp:
+## Board Lifecycle
 
 ```text
-Completed: YYYY-MM-DD
+BACKLOG.md → TASKS.md active lane → ARCHIVE.md
 ```
+
+- Backlog work becomes active when the Team Lead Agent moves it from `BACKLOG.md` into a dev-agent lane in `TASKS.md`.
+- Rejected or blocked work stays in its dev-agent lane until fixed or reassigned by the Team Lead Agent.
+- Completed tasks move to `ARCHIVE.md` with `Status: Done` and `Completed: YYYY-MM-DD`.
+
+## Workspace Isolation
+
+- Team Lead Agent workspace: `workspaces/repo-tl`
+- Dev Agent 1 workspace: `workspaces/repo-agent-1`
+- Dev Agent 2 workspace: `workspaces/repo-agent-2`
+
+Development and merges occur only inside implementation workspaces. The Team Lead Agent uses the Team Lead Agent workspace for planning and coordination checks only.
 
 ## Conflict Prevention
 
-Assign non-overlapping work whenever practical.
-
-Separate work by:
-
-- Foundations before dependent features
-- Features
-- Routes
-- Services
-- Directories
-
-Implementation agents modify only files required for their assigned task.
+Assign non-overlapping work whenever practical. Separate work by foundations, features, routes, services, and directories.
 
 If another active task owns required files:
 
 1. Stop immediately.
 2. Document the dependency.
-3. Request Team Lead coordination.
+3. Request Team Lead Agent coordination.
 
-## Completion Workflow
+## Instruction Priority
 
-Before marking work complete, implementation agents:
-
-1. Run verification defined in `TECH.md`.
-2. Commit focused changes.
-3. Squash-merge their completed branch into product `main`.
-4. Push the completed work.
-5. Update the task with verification and merge notes.
-
-After the implementation agent verifies, merges, and pushes the work:
-
-- The implementation agent records verification and merge notes in the task.
-- The implementation agent moves the task to **Done**.
-- The implementation agent sets `Status: Done`.
-- The implementation agent adds the completion date.
-- The Team Lead may assign the next task.
-
-If work cannot be completed or merged:
-
-- Append a `[REJECTED]` section to the task body containing:
-  - Failing command
-  - Exact output
-  - Short explanation of what must be fixed
-- Keep the task in its original implementation lane.
-
-The Team Lead does **not** modify implementation code during completion handling.
-
----
-
-# Orchestrator
-
-The orchestrator coordinates AI execution.
-
-Responsibilities:
-
-- Monitor `TASKS.md`
-- Launch implementation agents
-- Terminate obsolete sessions when task assignments change
-- Use `workspaces/repo-tl` as the Team Lead execution workspace; the top-level repo owns `TASKS.md`
-
-Agents never launch one another.
-
----
-
-# Instruction Priority
-
-Instructions are applied in the following order:
+Instructions apply in this order:
 
 1. User instructions
 2. Repository-specific instructions
 3. `AGENTS.md`
-4. `TECH.md`
-5. General engineering best practices
+4. Role-specific instructions
+5. `TECH.md`
+6. General engineering best practices

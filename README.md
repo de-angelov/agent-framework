@@ -9,21 +9,25 @@ my-project/
 │
 ├── .git/
 │
-├── AGENTS.md          ← Workflow (roles, TL, agents, review)
+├── AGENTS.md          ← Common workflow rules
+├── DEV_AGENT.md             ← Dev agent role rules
+├── TEAM_LEAD_AGENT.md       ← Team Lead Agent role rules
 ├── TECH.md            ← Stack, architecture, coding standards
-├── TASKS.md           ← Live project board
+├── BACKLOG.md         ← Pending work
+├── TASKS.md           ← Active dev-agent lanes
+├── ARCHIVE.md         ← Completed work history
 │
 ├── setup.go           ← One-time bootstrap
 │
 ├── orchestrator.go
 │
 └── workspaces/
-    ├── repo-tl/       ← Team Lead clone
-    ├── repo-agent-1/  ← Agent 1 clone
-    └── repo-agent-2/  ← Agent 2 clone
+    ├── repo-tl/       ← Team Lead Agent clone
+    ├── repo-agent-1/  ← Dev Agent 1 clone
+    └── repo-agent-2/  ← Dev Agent 2 clone
 ```
 
-The top-level repo owns `TASKS.md`, `AGENTS.md`, and `TECH.md`.
+The top-level repo owns `BACKLOG.md`, `TASKS.md`, `ARCHIVE.md`, `AGENTS.md`, `DEV_AGENT.md`, `TEAM_LEAD_AGENT.md`, and `TECH.md`.
 Each `repo-*` directory is a separate execution clone used by the orchestrator.
 
 ---
@@ -33,21 +37,29 @@ Each `repo-*` directory is a separate execution clone used by the orchestrator.
 The user creates:
 
 - `AGENTS.md`
+- `DEV_AGENT.md`
+- `TEAM_LEAD_AGENT.md`
 - `TECH.md`
 
-Then starts with an empty `TASKS.md`.
+Then starts with empty coordination files.
 
-Example:
+`BACKLOG.md`:
 
 ```md
 ## Backlog
+```
 
-## Agent 1 In Progress
+`TASKS.md`:
 
-## Agent 2 In Progress
+```md
+## Dev Agent 1 In Progress
 
-## Ready For Review
+## Dev Agent 2 In Progress
+```
 
+`ARCHIVE.md`:
+
+```md
 ## Done
 ```
 
@@ -95,11 +107,11 @@ Nothing happens because no work has been assigned.
 
 # Step 3 — User Gives a Goal
 
-Instead of editing `TASKS.md` manually, the user should ask the Team Lead:
+Instead of editing `TASKS.md` manually, the user should ask the Team Lead Agent:
 
 > Build a todo application.
 
-The Team Lead updates the top-level `TASKS.md`:
+The Team Lead Agent updates the top-level `BACKLOG.md`:
 
 ```md
 ## Backlog
@@ -113,30 +125,30 @@ Or immediately assigns work.
 
 ---
 
-# Step 4 — Team Lead Assigns Work
+# Step 4 — Team Lead Agent Assigns Work
 
-### Agent 1
+### Dev Agent 1
 
 ```md
-## Agent 1 In Progress
+## Dev Agent 1 In Progress
 
 ### Create Todo Database
 
-Owner: Agent 1
+Owner: Dev Agent 1
 Branch: agent/1/todo-db
-Status: Assigned
+Status: In Progress
 ```
 
-### Agent 2
+### Dev Agent 2
 
 ```md
-## Agent 2 In Progress
+## Dev Agent 2 In Progress
 
 ### Build Home Page
 
-Owner: Agent 2
+Owner: Dev Agent 2
 Branch: agent/2/home-page
-Status: Assigned
+Status: In Progress
 ```
 
 ---
@@ -145,8 +157,8 @@ Status: Assigned
 
 On the next poll it sees:
 
-- Agent 1
-- `Status = Assigned`
+- Dev Agent 1
+- `Status = In Progress`
 
 It starts Codex in:
 
@@ -157,49 +169,52 @@ workspaces/repo-agent-1/
 With the role:
 
 ```text
-Agent 1
+Dev Agent 1
 ```
 
-Likewise for Agent 2.
+Likewise for Dev Agent 2.
 
 ---
 
-# Step 6 — Agents Work
+# Step 6 — Dev Agents Work
 
 Each agent:
 
 1. Reads `AGENTS.md`
-2. Reads `TECH.md`
-3. Reads `TASKS.md`
-4. Checks out its branch
-5. Writes code
-6. Runs tests
-7. Commits
-8. Pushes
+2. Reads `DEV_AGENT.md`
+3. Reads `TECH.md`
+4. Reads board context from `BACKLOG.md` and `TASKS.md`
+5. Checks out its branch
+6. Writes code
+7. Runs tests
+8. Commits
+9. Pushes
+10. Squash-merges its completed branch into product `main`
+11. Moves its completed task to `ARCHIVE.md`
 
 When finished, the task moves from:
 
 ```md
-## Agent 1 In Progress
+## Dev Agent 1 In Progress
 ```
 
-to:
+to `ARCHIVE.md`:
 
 ```md
-## Ready For Review
+## Done
 ```
 
 and its status becomes:
 
 ```text
-Status: Ready For Review
+Status: Done
 ```
 
 ---
 
 # Step 7 — Orchestrator Notices Again
 
-The orchestrator launches the Team Lead in:
+When a lane is free and backlog work exists, the orchestrator launches the Team Lead Agent in:
 
 ```text
 workspaces/repo-tl/
@@ -208,20 +223,14 @@ workspaces/repo-tl/
 Role:
 
 ```text
-Team Lead
+Team Lead Agent
 ```
 
 ---
 
-# Step 8 — Team Lead Reviews
+# Step 8 — Team Lead Agent Assigns
 
-The Team Lead:
-
-1. Fetches the branch
-2. Reviews the diff
-3. Runs tests
-4. Merges
-5. Updates `TASKS.md`
+The Team Lead Agent grooms and assigns backlog work. Dev agents own verification, pushing, squash-merging, and archiving their completed tasks.
 
 Example:
 
@@ -235,21 +244,21 @@ Completed: 2026-06-28
 
 ---
 
-# Step 9 — Team Lead Assigns More Work
+# Step 9 — Team Lead Agent Assigns More Work
 
 Example:
 
 ```md
-## Agent 1 In Progress
+## Dev Agent 1 In Progress
 
 ### Implement Authentication
 
-Owner: Agent 1
+Owner: Dev Agent 1
 Branch: agent/1/auth
-Status: Assigned
+Status: In Progress
 ```
 
-The orchestrator notices the new assignment and starts Agent 1 again.
+The orchestrator notices the new assignment and starts Dev Agent 1 again.
 
 ---
 
@@ -259,10 +268,10 @@ The orchestrator notices the new assignment and starts Agent 1 again.
 User
   │
   ▼
-Team Lead
+Team Lead Agent
   │
   ▼
-TASKS.md
+BACKLOG.md / TASKS.md
   │
   ▼
 Orchestrator
@@ -271,19 +280,10 @@ Orchestrator
 Agent
   │
   ▼
-Git Push
+Git Push + Squash Merge
   │
   ▼
-Ready For Review
-  │
-  ▼
-Orchestrator
-  │
-  ▼
-Team Lead
-  │
-  ▼
-Merge
+ARCHIVE.md
   │
   ▼
 Assign Next Task

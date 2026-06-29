@@ -29,10 +29,10 @@ func reconcile(tasks []Task) {
 
 	for _, task := range tasks {
 		switch {
-		case task.Section == "Agent 1 In Progress" && task.Owner == "Agent 1" && task.Status == "In Progress":
-			addDesired("Agent 1", task)
-		case task.Section == "Agent 2 In Progress" && task.Owner == "Agent 2" && task.Status == "In Progress":
-			addDesired("Agent 2", task)
+		case task.Section == "Dev Agent 1 In Progress" && task.Owner == devAgent1Role && task.Status == "In Progress":
+			addDesired(devAgent1Role, task)
+		case task.Section == "Dev Agent 2 In Progress" && task.Owner == devAgent2Role && task.Status == "In Progress":
+			addDesired(devAgent2Role, task)
 		case task.Section == "Backlog" && backlogTask == nil:
 			if task.Status == "Backlog" || task.Status == "" {
 				copy := task
@@ -42,8 +42,8 @@ func reconcile(tasks []Task) {
 	}
 
 	if backlogTask != nil && len(invalidRoles) == 0 {
-		_, agent1Busy := desired["Agent 1"]
-		_, agent2Busy := desired["Agent 2"]
+		_, agent1Busy := desired[devAgent1Role]
+		_, agent2Busy := desired[devAgent2Role]
 		if agent1Busy && agent2Busy {
 			backlogTask = nil
 		}
@@ -54,7 +54,7 @@ func reconcile(tasks []Task) {
 	}
 
 	if backlogTask != nil {
-		desired["Team Lead"] = *backlogTask
+		desired[teamLeadRole] = *backlogTask
 	}
 
 	mu.Lock()
@@ -69,7 +69,7 @@ func reconcile(tasks []Task) {
 		taskKey := task.Key
 
 		if !stillDesired || taskKey != session.TaskKey {
-			logEvent("stopping %s because TASKS.md changed", role)
+			logEvent("stopping %s because board files changed", role)
 			session.Cancel()
 			delete(running, role)
 		}
@@ -136,11 +136,11 @@ func startSession(role string, task Task, tasks []Task) {
 		}()
 
 		switch role {
-		case "Agent 1":
-			outcome = runAgent(ctx, "Agent 1", agent1Path, task, tasks)
-		case "Agent 2":
-			outcome = runAgent(ctx, "Agent 2", agent2Path, task, tasks)
-		case "Team Lead":
+		case devAgent1Role:
+			outcome = runAgent(ctx, devAgent1Role, agent1Path, task, tasks)
+		case devAgent2Role:
+			outcome = runAgent(ctx, devAgent2Role, agent2Path, task, tasks)
+		case teamLeadRole:
 			outcome = runTeamLead(ctx, task, tasks)
 		}
 	}()
@@ -157,13 +157,12 @@ func runAgent(ctx context.Context, role string, workspace string, task Task, tas
 	}
 
 	prompt := buildPrompt(role, task, tasks, `
-Role: Implementation Agent
-Rules:
-- Follow AGENTS.md and TECH.md.
+Role: Dev Agent
+Runtime Rules:
 - UI-Limits: flexbox layout only; padding:10px; border:1px solid grey. No custom fonts/shadows/gradients/rounded-corners unless explicitly requested.
-- Scope: Work ONLY on assigned task. Focused changes. No backlog modifications. No self-approval.
-- Workflow: Write/update tests. Run verification. Commit, push branch, squash-merge into product main when done.
-- Updates: Document progress/verification/merges in TASKS.md. On complete, move task to Done (Status: Done, Completed: YYYY-MM-DD). Do not alter other tasks.
+- Work only on the assigned task and keep changes focused.
+- Write/update tests. Run verification. Commit, push branch, squash-merge into product main when done.
+- Update TASKS.md with progress and merge notes. On completion, move the completed task from TASKS.md to ARCHIVE.md with Status: Done and Completed: YYYY-MM-DD.
 `)
 
 	return runCodex(ctx, workspace, prompt)
@@ -177,20 +176,20 @@ func runTeamLead(ctx context.Context, task Task, tasks []Task) SessionOutcome {
 		logEvent("team lead branch: %s", currentBranch)
 	}
 
-	prompt := buildPrompt("Team Lead", task, tasks, `
-Role: Team Lead
-Rules:
-- Follow AGENTS.md and TECH.md.
+	prompt := buildPrompt(teamLeadRole, task, tasks, `
+Role: Team Lead Agent
+Runtime Rules:
 - Enforcement: Verify default styling matches flexbox limits (padding:10px, border:1px solid grey).
-- Board Management: TASKS.md is single source of truth. Groom Backlog items into active Agent lanes; set Owner, Branch, and Status: In Progress.
-- Constraints: No code implementation during grooming. Do not review agent branches or merge them (Agents merge own completed work). Maintain sensible backlog priorities.
+- Board Management: BACKLOG.md contains pending work; TASKS.md contains active dev-agent lanes. Assign by moving a backlog task into a dev-agent lane and setting Owner, Branch, and Status: In Progress.
+- No code implementation during grooming. Do not review dev-agent branches or merge them. Maintain sensible backlog priorities.
 `)
 
 	return runCodex(ctx, teamLeadPath, prompt)
 }
 
 func buildPrompt(role string, task Task, tasks []Task, roleInstructions string) string {
-	agents := mustRead(agentsFile)
+	commonInstructions := mustRead(agentsFile)
+	specificInstructions := mustRead(roleInstructionsPath(role))
 	tech := mustRead(techFile)
 	taskContext := buildTaskContext(role, task, tasks)
 
@@ -199,7 +198,11 @@ You are running inside the multi-agent development workflow.
 
 Active role: %s
 
-================ AGENTS.md ================
+================ AGENTS.md COMMON RULES ================
+
+%s
+
+================ ROLE-SPECIFIC INSTRUCTIONS ================
 
 %s
 
@@ -207,7 +210,7 @@ Active role: %s
 
 %s
 
-================ TASKS.md CONTEXT ================
+================ BOARD CONTEXT ================
 
 %s
 
@@ -223,10 +226,17 @@ Task body:
 
 %s
 
-================ ROLE INSTRUCTIONS ================
+================ RUNTIME INSTRUCTIONS ================
 
 %s
-`, role, agents, tech, taskContext, task.Section, task.Title, task.Owner, task.Branch, task.Status, task.Body, roleInstructions)
+`, role, commonInstructions, specificInstructions, tech, taskContext, task.Section, task.Title, task.Owner, task.Branch, task.Status, task.Body, roleInstructions)
+}
+
+func roleInstructionsPath(role string) string {
+	if role == teamLeadRole {
+		return tlAgentInstructionsFile
+	}
+	return devAgentInstructionsFile
 }
 
 func buildTaskContext(role string, activeTask Task, tasks []Task) string {
@@ -234,19 +244,19 @@ func buildTaskContext(role string, activeTask Task, tasks []Task) string {
 	b.WriteString("Active task body is shown separately below. This context is summarized to save tokens.\n")
 
 	switch role {
-	case "Team Lead":
+	case teamLeadRole:
 		b.WriteString("\nBacklog:\n")
 		writeTaskSummaries(&b, tasks, func(task Task) bool {
 			return task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "")
 		})
 
-		b.WriteString("\nImplementation lanes:\n")
+		b.WriteString("\nDev-agent lanes:\n")
 		writeTaskSummaries(&b, tasks, func(task Task) bool {
 			return strings.HasSuffix(task.Section, "In Progress")
 		})
 
 	default:
-		b.WriteString("\nOther active implementation work:\n")
+		b.WriteString("\nOther active dev-agent work:\n")
 		writeTaskSummaries(&b, tasks, func(task Task) bool {
 			if task.Title == activeTask.Title &&
 				task.Owner == activeTask.Owner &&
@@ -285,6 +295,20 @@ func writeTaskSummaries(b *strings.Builder, tasks []Task, include func(Task) boo
 	if !wrote {
 		b.WriteString("- none\n")
 	}
+}
+
+func readBoardTasks() ([]Task, error) {
+	var all []Task
+
+	for _, path := range []string{backlogFile, tasksFile} {
+		tasks, err := readTasks(path)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, tasks...)
+	}
+
+	return all, nil
 }
 
 func taskSummary(body string) string {

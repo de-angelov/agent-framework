@@ -11,13 +11,13 @@ import (
 
 func workspaceExists(role string) bool {
 	switch role {
-	case "Agent 1":
+	case devAgent1Role:
 		_, err := os.Stat(agent1Path)
 		return err == nil
-	case "Agent 2":
+	case devAgent2Role:
 		_, err := os.Stat(agent2Path)
 		return err == nil
-	case "Team Lead":
+	case teamLeadRole:
 		_, err := os.Stat(teamLeadPath)
 		return err == nil
 	default:
