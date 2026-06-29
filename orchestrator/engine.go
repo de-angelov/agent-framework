@@ -302,6 +302,11 @@ func buildTaskContext(role string, activeTask Task, tasks []Task) string {
 			return strings.HasSuffix(task.Section, "In Progress")
 		})
 
+		b.WriteString("\nCompleted tasks from archive:\n")
+		writeTaskSummaries(&b, tasks, func(task Task) bool {
+			return task.Status == "Done"
+		})
+
 	default:
 		b.WriteString("\nOther active dev-agent work:\n")
 		writeTaskSummaries(&b, tasks, func(task Task) bool {
@@ -342,7 +347,7 @@ func writeTaskSummaries(b *strings.Builder, tasks []Task, include func(Task) boo
 func readBoardTasks() ([]Task, error) {
 	var all []Task
 
-	for _, path := range []string{backlogFile, tasksFile} {
+	for _, path := range []string{backlogFile, tasksFile, archiveFile} {
 		tasks, err := readTasks(path)
 		if err != nil {
 			return nil, err

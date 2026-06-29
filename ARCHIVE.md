@@ -4,6 +4,135 @@ Completed work history. Normal orchestrator prompts do not load this file.
 
 ## Done
 
+### Route and Service Folder Structure Cleanup
+
+Task ID: STRUCTURE-01
+Category: AFK
+Priority: High
+Owner: Dev Agent 2
+Branch: agent/2/route-service-folder-structure-cleanup
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Moved route and service files into per-feature folders so they follow the same organization convention as shared components.
+
+Scope:
+- Defined route folder conventions for colocating route modules with focused tests, helpers, and route-specific CSS modules.
+- Defined service folder conventions for colocating service implementations with focused service tests.
+- Moved existing route modules, route tests, route helpers, service modules, and service tests into per-feature folders.
+- Updated route config references, imports, and seed script imports after the moves.
+- Updated `TECH.md` with route and service folder conventions.
+- Kept route behavior, service business rules, database schema, styling, and authentication behavior unchanged.
+
+Verification:
+- `npm test` passed in `workspaces/repo-agent-2`.
+- `npm run typecheck` passed in `workspaces/repo-agent-2`.
+- `npm run build` passed in `workspaces/repo-agent-2`.
+
+Merge:
+- Branch `agent/2/route-service-folder-structure-cleanup` completed; merge status not recorded in the task notes.
+
+Follow-up:
+- None recorded.
+
+---
+
+### Wireframe Epic Management UI Alignment
+
+Task ID: EPIC-UI-01
+Category: AFK
+Owner: Dev Agent 2
+Branch: agent/2/wireframe-epic-management-ui-alignment
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Aligned the epic management route with the epic wireframe hierarchy while preserving existing epic mutation behavior.
+
+Scope:
+- Switched the epic route loader to the merged management read model with ticket counts.
+- Updated the epic table to show team, title, description, ticket count, modified timestamp, row edit action, and row delete action.
+- Disabled row delete for epics referenced by tickets and added explanatory blocked-delete copy.
+- Preserved create, edit, delete, title validation, immutable team assignment, empty, success, and error states.
+- Added focused route coverage for ticket-count display, blocked delete affordance, and enabled delete rows.
+
+Verification:
+- `npm test -- app/routes/epics.test.ts && npm run typecheck && npm run build` passed on the task branch.
+- `npm test -- app/routes/epics.test.ts && npm run typecheck && npm run build` passed after squash merge on `main`.
+
+Merge:
+- Branch `agent/2/wireframe-epic-management-ui-alignment` pushed at commit `33eb4ae`.
+- Squash-merged into product `main` as commit `df13ecf` (`EPIC-UI-01: align epic management wireframe`) and pushed.
+
+Follow-up:
+- None.
+
+---
+
+### Wireframe Team Management UI Alignment
+
+Task ID: TEAM-UI-01
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/wireframe-team-management-ui-alignment
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Aligned the team management screen with the team wireframe hierarchy while preserving existing team mutations.
+
+Scope:
+- Updated the teams loader to consume the merged `listTeamManagementRows` read model.
+- Reworked the teams table to show name, ticket count, epic count, modified timestamp, and row edit/delete actions.
+- Added disabled delete affordances and explanatory blocked-delete copy when teams have ticket or epic references.
+- Preserved create, rename, delete, unique-name validation, blocked-delete messages, empty state, success state, and error state behavior.
+- Expanded focused route coverage for counts, modified timestamps, row actions, blocked delete UI, create/edit forms, and empty state.
+
+Verification:
+- `npm test -- app/routes/teams.test.tsx && npm run typecheck && npm run build` passed on the task branch.
+- `npm test -- app/routes/teams.test.tsx && npm run typecheck && npm run build` passed after squash merge on `main`.
+
+Merge:
+- Branch `agent/1/wireframe-team-management-ui-alignment` pushed at commit `925f2ce`.
+- Squash-merged into product `main` as commit `7b48e63` (`TEAM-UI-01: align team management UI`) and pushed.
+
+Follow-up:
+- None.
+
+---
+
+### Management Count Queries
+
+Task ID: MGMT-01
+Category: AFK
+Owner: Dev Agent 2
+Branch: agent/2/management-count-queries
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Exposed reusable management read models for team and epic count tables without changing mutation behavior.
+
+Scope:
+- Added `listTeamManagementRows` with ticket and epic counts ordered by team name.
+- Added `listEpicManagementRows` with ticket counts ordered by team name and epic title.
+- Kept route modules and mutation rules unchanged.
+- Added focused service coverage for zero counts, nonzero counts, distinct counts, and ordering.
+
+Verification:
+- `npm test -- app/services/teams.server.test.ts app/services/epics.server.test.ts && npm run typecheck` passed on the task branch.
+- `npm test -- app/services/teams.server.test.ts app/services/epics.server.test.ts && npm run typecheck` passed after squash merge on `main`.
+
+Merge:
+- Branch `agent/2/management-count-queries` pushed at commit `a36a178`.
+- Squash-merged into product `main` as commit `3fc1a18` (`MGMT-01: add management count queries`) and pushed.
+
+Follow-up:
+- `TEAM-UI-01` and `EPIC-UI-01` can consume the merged management read models.
+
+---
+
 ### Component Folder and CSS Module Cleanup
 
 Owner: Dev Agent 1

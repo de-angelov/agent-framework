@@ -53,6 +53,7 @@ BACKLOG.md → TASKS.md active lane → ARCHIVE.md
 - Backlog work becomes active when the Team Lead Agent moves it from `BACKLOG.md` into a dev-agent lane in `TASKS.md`.
 - Rejected or blocked work stays in its dev-agent lane until fixed or reassigned by the Team Lead Agent.
 - Completed tasks move to `ARCHIVE.md` with `Status: Done` and `Completed: YYYY-MM-DD`.
+- Do not report a task as completed while it remains in `TASKS.md`; if verification passed but the task is still active, the board update is unfinished work.
 
 ## Workspace Isolation
 

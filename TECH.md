@@ -19,6 +19,20 @@ This document defines the engineering standards for this repository.
 - React Router
 
 Keep route modules focused on request boundaries, data loading, and rendering.
+Route modules must live in per-feature folders under `app/routes`. Colocate each
+route module with its focused route test and route-specific CSS module when
+styling is needed. Shared route-only helpers may live in a route support folder
+under `app/routes`.
+
+Examples:
+
+```text
+app/routes/teams/teams.tsx
+app/routes/teams/teams.test.tsx
+app/routes/teams/teams.module.css
+app/routes/auth/auth-ui.tsx
+app/routes/auth/auth.module.css
+```
 
 Shared UI components must live in their own subfolders under the component area.
 Each component folder should contain the component implementation, its focused
@@ -44,6 +58,15 @@ infrastructure.
 - Service layer for business logic
 
 Business logic belongs in reusable server-side service modules rather than route handlers.
+Services must live in per-feature folders under `app/services`. Colocate each
+service implementation with its focused service test.
+
+Example:
+
+```text
+app/services/teams/teams.server.ts
+app/services/teams/teams.server.test.ts
+```
 
 ---
 

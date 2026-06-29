@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -101,6 +102,45 @@ func TestShouldNotRetryCompletedSession(t *testing.T) {
 	}
 	if retryCount != 0 {
 		t.Fatalf("retry count return = %d, want 0", retryCount)
+	}
+}
+
+func TestTeamLeadContextIncludesCompletedArchiveTasks(t *testing.T) {
+	context := buildTaskContext(teamLeadRole, Task{}, []Task{
+		{
+			Section: "Backlog",
+			Title:   "Ready Work",
+			Status:  "Backlog",
+			Body:    "Task ID: READY-01\nDependencies: DONE-01",
+		},
+		{
+			Section: "Done",
+			Title:   "Completed Dependency",
+			Status:  "Done",
+			Body:    "Task ID: DONE-01\nStatus: Done",
+		},
+	})
+
+	if !strings.Contains(context, "Completed tasks from archive:") {
+		t.Fatal("expected team lead context to include archive section")
+	}
+	if !strings.Contains(context, "Completed Dependency") {
+		t.Fatal("expected team lead context to include completed archive task")
+	}
+}
+
+func TestDevAgentContextDoesNotIncludeArchiveTasks(t *testing.T) {
+	context := buildTaskContext(devAgent1Role, Task{}, []Task{
+		{
+			Section: "Done",
+			Title:   "Completed Dependency",
+			Status:  "Done",
+			Body:    "Task ID: DONE-01\nStatus: Done",
+		},
+	})
+
+	if strings.Contains(context, "Completed Dependency") {
+		t.Fatal("expected dev agent context to exclude archive tasks")
 	}
 }
 

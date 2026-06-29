@@ -47,6 +47,8 @@ Before marking work complete:
 7. Move the completed task from `TASKS.md` to `ARCHIVE.md`.
 8. Set `Status: Done`.
 9. Add `Completed: YYYY-MM-DD`.
+10. Confirm the task no longer appears in `TASKS.md`.
+11. Report the archive entry path when giving completion status.
 
 If work cannot be completed or merged, append a `[REJECTED]` section to the task body with:
 
