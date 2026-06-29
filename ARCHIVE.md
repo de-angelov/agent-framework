@@ -4,6 +4,41 @@ Completed work history. Normal orchestrator prompts do not load this file.
 
 ## Done
 
+### Exhaustive Mapper Pattern Cleanup
+
+Owner: Dev Agent 1
+Branch: agent/1/exhaustive-mapper-pattern-cleanup
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Made app-owned service error mapping functions consistently use exhaustive `ts-pattern` matches.
+
+Scope:
+- Converted team and epic mutation error mappers from `switch` statements to `match(...).with(...).exhaustive()`.
+- Checked existing mapper-style branching and left raw external form intent handling unchanged.
+- Preserved existing messages, return values, and behavior.
+- Added focused coverage for team and epic mutation error message mapping.
+
+Coordination:
+- Kept the cleanup scoped to service mapper code and adjacent service tests.
+- Avoided route behavior, UI styling, component structure, database schema, and feature workflow changes.
+
+Verification:
+- `npm test` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
+Merge:
+- Branch `agent/1/exhaustive-mapper-pattern-cleanup` pushed.
+- Squash-merged into product `main` as commit `7d1bc26` (`Task 12: use exhaustive mapper patterns`) and pushed.
+
+Follow-up:
+- Apply this convention as new app-owned error/status mappers are added.
+
+---
+
+
 ### API and Persistence Foundation
 
 Owner: Dev Agent 1

@@ -2,8 +2,6 @@
 
 Live execution lanes only. Pending backlog lives in BACKLOG.md. Completed work lives in ARCHIVE.md.
 
-## Dev Agent 1 In Progress
-
 ## Dev Agent 2 In Progress
 
 ### Epic Management UI
@@ -38,4 +36,3 @@ Follow-up:
 
 
 ---
-
