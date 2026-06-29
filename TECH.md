@@ -20,6 +20,22 @@ This document defines the engineering standards for this repository.
 
 Keep route modules focused on request boundaries, data loading, and rendering.
 
+Shared UI components must live in their own subfolders under the component area.
+Each component folder should contain the component implementation, its focused
+test file, and its CSS module when styling is needed.
+
+Example:
+
+```text
+app/components/button/button.tsx
+app/components/button/button.test.tsx
+app/components/button/button.module.css
+```
+
+Prefer CSS modules for component styling. Avoid adding new component-specific
+styles to global stylesheets unless the style is truly global application
+infrastructure.
+
 ---
 
 ## Backend
@@ -132,6 +148,11 @@ Use `ts-pattern` when branching over:
 
 Prefer exhaustive `match(...)` expressions.
 
+Use `.exhaustive()` when matching a typed union or enum owned by the
+application, such as domain states, service errors, and known status values.
+Use `.otherwise(...)` only when the input can contain unknown external values,
+such as raw form intents, query parameters, or untrusted request payloads.
+
 Do not replace simple guard clauses or nullish defaults with pattern matching when it reduces readability.
 
 ---
@@ -211,6 +232,10 @@ Required default styling:
 
 Avoid unnecessary visual polish until core functionality is complete.
 Do not add custom fonts, shadows, gradients, rounded corners, or decorative spacing unless explicitly required.
+Keep component styles colocated in `*.module.css` files inside the component's
+own folder. Route-level styles may use route-specific CSS modules when the
+styles are not shared. Keep `app/styles.css` limited to global resets, document
+defaults, and intentionally shared application-level primitives.
 
 ---
 

@@ -6,37 +6,33 @@ This document is the single source of truth for project work.
 
 ## Backlog
 
-### API Error and Integrity Conventions
+### Component Folder and CSS Module Cleanup
 
 Owner: Unassigned
 Branch:
 Status: Backlog
 
 Outcome:
-Establish shared backend API error mapping, authentication failure responses, and referential integrity behavior.
+Move shared UI components into per-component folders with colocated tests and CSS modules.
 
 Scope:
-- Perform create, update, and delete operations through backend API boundaries.
-- Use database constraints and/or server-side validation to maintain referential integrity.
-- Return meaningful HTTP status codes and error messages for validation failures.
-- Return meaningful HTTP status codes and error messages for authentication failures.
-- Return meaningful HTTP status codes and error messages for missing records.
-- Return meaningful HTTP status codes and error messages for conflicts.
-- Return HTTP 409 Conflict when deleting a team that contains tickets or epics.
-- Return HTTP 409 Conflict when deleting an epic referenced by tickets.
-- Use cookie-based sessions or bearer-token authentication.
-- Never place session identifiers, access tokens, or bearer tokens in URLs.
-- Allow single-use email-verification tokens in verification URLs.
-- Use last successful write wins; concurrent-edit conflict detection is not required.
-- Add automated tests for API error mapping, referential integrity behavior, and auth-token URL handling where practical.
+- Create a dedicated subfolder for each existing shared component under `app/components`.
+- Move each component implementation into its own folder.
+- Move each component's focused test into the same folder as the component.
+- Move component-specific CSS out of global stylesheets into colocated `*.module.css` files.
+- Update imports, route usage, and test references after files move.
+- Keep `app/styles.css` limited to global resets, document defaults, and intentionally shared application-level primitives.
+- Preserve existing component behavior and visual simplicity.
+- Add or update automated tests only where moves expose missing component coverage.
 
 Coordination:
-- Build after `API and Persistence Foundation`.
-- Keep changes focused on backend API conventions, service-level error mapping, validation helpers, auth response boundaries, and focused tests.
-- Avoid feature UI work and broad route rewrites.
+- Build after Agent 2 completes `Epic Management UI`, or coordinate carefully if that branch changes shared component imports or global styles.
+- Keep this as a structural cleanup only; do not redesign components, change route behavior, or add visual polish.
+- Use the component organization and CSS module conventions in `TECH.md`.
+- Avoid ticket, comment, board, team, and epic feature behavior changes.
 
 Follow-up:
-- Add optimistic concurrency only if concurrent-edit conflicts become a product requirement.
+- Apply the same folder-and-module convention to future route-specific components as they are extracted.
 
 ---
 
