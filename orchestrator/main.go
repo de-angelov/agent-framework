@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+var repoRootMarkers = []string{
+	"BACKLOG.md",
+	"TASKS.md",
+	"ARCHIVE.md",
+	"AGENTS.md",
+	"DEV_AGENT.md",
+	"TEAM_LEAD_AGENT.md",
+	"TECH.md",
+}
+
 func main() {
 	mustMkdir(logsRoot)
 	logEvent("orchestrator started")
@@ -28,11 +38,54 @@ func main() {
 }
 
 func mustResolveRepoRoot() string {
-	cwd, err := filepath.Abs(".")
+	cwd, err := os.Getwd()
 	if err != nil {
 		return "."
 	}
-	return cwd
+
+	if root, ok := resolveRepoRootFrom(cwd); ok {
+		return root
+	}
+
+	if executable, err := os.Executable(); err == nil {
+		if root, ok := resolveRepoRootFrom(filepath.Dir(executable)); ok {
+			return root
+		}
+	}
+
+	abs, err := filepath.Abs(cwd)
+	if err != nil {
+		return cwd
+	}
+	return abs
+}
+
+func resolveRepoRootFrom(start string) (string, bool) {
+	current, err := filepath.Abs(start)
+	if err != nil {
+		return "", false
+	}
+
+	for {
+		if hasRepoRootMarkers(current) {
+			return current, true
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", false
+		}
+		current = parent
+	}
+}
+
+func hasRepoRootMarkers(dir string) bool {
+	for _, marker := range repoRootMarkers {
+		if _, err := os.Stat(filepath.Join(dir, marker)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func sleep() {

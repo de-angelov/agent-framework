@@ -62,6 +62,7 @@ func reconcile(tasks []Task) {
 	mu.Lock()
 	for role := range finished {
 		if _, stillDesired := desired[role]; !stillDesired {
+			delete(failedSessionRetryCounts, failedSessionRetryKey(role, finished[role].TaskKey))
 			delete(finished, role)
 		}
 	}
@@ -90,6 +91,7 @@ func reconcile(tasks []Task) {
 		_, exists := running[role]
 		finishedSession, alreadyFinished := finished[role]
 		if alreadyFinished && finishedSession.TaskKey != taskKey {
+			delete(failedSessionRetryCounts, failedSessionRetryKey(role, finishedSession.TaskKey))
 			delete(finished, role)
 			alreadyFinished = false
 		}
@@ -97,7 +99,21 @@ func reconcile(tasks []Task) {
 			delete(finished, role)
 			alreadyFinished = false
 		}
+		shouldRetry, retryCount := shouldRetryFailedSessionLocked(role, finishedSession, time.Now())
+		if alreadyFinished && shouldRetry {
+			delete(finished, role)
+			alreadyFinished = false
+		}
 		mu.Unlock()
+
+		if shouldRetry {
+			logEvent(
+				"retrying %s after failed session for same task (%d/%d)",
+				role,
+				retryCount,
+				maxFailedSessionRetries,
+			)
+		}
 
 		if exists || alreadyFinished {
 			continue
@@ -143,6 +159,9 @@ func startSession(role string, task Task, tasks []Task) {
 					FinishedAt: time.Now(),
 				}
 			}
+			if outcome == sessionCompleted {
+				delete(failedSessionRetryCounts, failedSessionRetryKey(role, taskKey))
+			}
 			mu.Unlock()
 		}()
 
@@ -155,6 +174,28 @@ func startSession(role string, task Task, tasks []Task) {
 			outcome = runTeamLead(ctx, task, tasks)
 		}
 	}()
+}
+
+func shouldRetryFailedSessionLocked(role string, session FinishedSession, now time.Time) (bool, int) {
+	if session.Outcome != sessionFailed {
+		return false, 0
+	}
+	if now.Sub(session.FinishedAt) < failedSessionRetryDelay {
+		return false, 0
+	}
+
+	key := failedSessionRetryKey(role, session.TaskKey)
+	retries := failedSessionRetryCounts[key]
+	if retries >= maxFailedSessionRetries {
+		return false, retries
+	}
+
+	failedSessionRetryCounts[key] = retries + 1
+	return true, failedSessionRetryCounts[key]
+}
+
+func failedSessionRetryKey(role string, taskKey string) string {
+	return role + "\x00" + taskKey
 }
 
 func runAgent(ctx context.Context, role string, workspace string, task Task, tasks []Task) SessionOutcome {

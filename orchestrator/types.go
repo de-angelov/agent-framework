@@ -11,6 +11,8 @@ import (
 const pollInterval = 10 * time.Second
 const codexResourceRetryDelay = 5 * time.Hour
 const codexStatusCheckInterval = time.Minute
+const failedSessionRetryDelay = time.Minute
+const maxFailedSessionRetries = 3
 
 var (
 	repoRoot       = mustResolveRepoRoot()
@@ -30,10 +32,11 @@ var (
 	agent1Path   = filepath.Join(workspacesRoot, "repo-agent-1")
 	agent2Path   = filepath.Join(workspacesRoot, "repo-agent-2")
 
-	mu       sync.Mutex
-	running  = map[string]RunningSession{}
-	finished = map[string]FinishedSession{}
-	logMu    sync.Mutex
+	mu                       sync.Mutex
+	running                  = map[string]RunningSession{}
+	finished                 = map[string]FinishedSession{}
+	failedSessionRetryCounts = map[string]int{}
+	logMu                    sync.Mutex
 
 	codexResourcePausedUntil time.Time
 	lastCodexStatusCheck     time.Time

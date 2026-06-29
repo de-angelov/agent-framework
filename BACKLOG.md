@@ -4,61 +4,30 @@ Pending work only. Active work lives in TASKS.md. Completed work lives in ARCHIV
 
 ## Backlog
 
-### Exhaustive Mapper Pattern Cleanup
+### Wireframe Epic Management UI Alignment
 
 Owner: Unassigned
 Branch:
 Status: Backlog
 
 Outcome:
-Make app-owned error and status mapping functions consistently use exhaustive `ts-pattern` matches.
+Align the epic management screen with the epic wireframe hierarchy.
 
 Scope:
-- Convert service error mappers such as team and epic mutation error mapping from `switch` statements to `match(...).with(...).exhaustive()`.
-- Check existing app-owned union or enum mapping functions for the same cleanup opportunity.
-- Preserve all existing messages, return values, and behavior.
-- Keep simple guard clauses, null checks, and untrusted external input handling unchanged.
-- Add or update focused tests only if an affected mapper lacks coverage.
+- Shape epic management around team selection, table-style epic list with title/description, ticket count, modified timestamp, row edit/delete actions, disabled delete affordance when referenced, explanatory blocked-delete copy, and adjacent create/edit form placement where practical.
+- Preserve existing epic create, edit, delete, title validation, immutable team assignment, and blocked-delete behavior.
+- Preserve required loading, empty, success, and error states while applying the wireframe hierarchy.
+- Add or update focused tests for team selection, title/description display, ticket counts, modified timestamp display, row edit/delete actions, disabled delete affordance, blocked-delete explanation, create form, and edit form.
 
 Coordination:
-- Keep this as a narrow consistency cleanup in service and mapper code only.
-- Use `.exhaustive()` only for typed unions or enums owned by the application, following `TECH.md`.
-- Do not change route behavior, UI styling, component structure, database schema, or feature workflows.
-- Avoid broad refactors while Dev Agent 2's `Epic Management UI` task is active.
+- Build after Dev Agent 2's active `Epic Management UI` task has landed in product `main`.
+- Reuse the shared authenticated shell if `Wireframe Shared App Shell` has landed first.
+- Keep this task scoped to epic route presentation and focused tests.
+- Avoid changing backend epic business rules, database schema, team behavior, ticket behavior, or route permissions.
+- Do not overlap Dev Agent 2's active `Epic Management UI` branch unless the Team Lead Agent explicitly coordinates the work.
 
 Follow-up:
-- Apply this convention as new app-owned error/status mappers are added.
-
----
-
-
-### Component Folder and CSS Module Cleanup
-
-Owner: Unassigned
-Branch:
-Status: Backlog
-
-Outcome:
-Move shared UI components into per-component folders with colocated tests and CSS modules.
-
-Scope:
-- Create a dedicated subfolder for each existing shared component under `app/components`.
-- Move each component implementation into its own folder.
-- Move each component's focused test into the same folder as the component.
-- Move component-specific CSS out of global stylesheets into colocated `*.module.css` files.
-- Update imports, route usage, and test references after files move.
-- Keep `app/styles.css` limited to global resets, document defaults, and intentionally shared application-level primitives.
-- Preserve existing component behavior and visual simplicity.
-- Add or update automated tests only where moves expose missing component coverage.
-
-Coordination:
-- Build after Dev Agent 2 completes `Epic Management UI`, or coordinate carefully if that branch changes shared component imports or global styles.
-- Keep this as a structural cleanup only; do not redesign components, change route behavior, or add visual polish.
-- Use the component organization and CSS module conventions in `TECH.md`.
-- Avoid ticket, comment, board, team, and epic feature behavior changes.
-
-Follow-up:
-- Apply the same folder-and-module convention to future route-specific components as they are extracted.
+- If ticket counts are unavailable from existing loaders/services, add a separate backend count-query task before expanding this UI branch.
 
 ---
 
@@ -205,6 +174,36 @@ Follow-up:
 
 ---
 
+### Wireframe Ticket Details and Comments UI
+
+Owner: Unassigned
+Branch:
+Status: Backlog
+
+Outcome:
+Align ticket create/edit/details and comments presentation with the ticket wireframe hierarchy.
+
+Scope:
+- Shape ticket details/editing around the wireframe hierarchy: back-to-team-board navigation, ticket metadata, editable team/type/state/epic/title/body fields, clear save and delete actions, and a comments panel with count, chronological comments, and add-comment form.
+- Preserve existing ticket create, view, edit, delete, same-team epic selection, comment creation, and comment ordering behavior.
+- Keep ticket deletion behind explicit confirmation.
+- Preserve required loading, empty, success, and error states while applying the wireframe hierarchy.
+- Add or update focused tests for back navigation, metadata display, editable fields, save/delete actions, confirmation, comments count, chronological comments, and add-comment form.
+
+Coordination:
+- Build after `Ticket CRUD UI and Routes` and `Immutable Ticket Comments` have landed in product `main`.
+- Reuse the shared authenticated shell if `Wireframe Shared App Shell` has landed first.
+- Keep this task scoped to ticket routes and ticket/comment route-level components.
+- Avoid changing backend ticket services, comment services, ticket workflow rules, comment mutability, database schema, or board drag-and-drop behavior.
+
+Follow-up:
+- Add comment editing/deletion only through the separate `Edit or Delete Own Comments` task.
+
+---
+
+
+---
+
 ### Kanban Board Shell and Ticket Cards
 
 Owner: Unassigned
@@ -233,6 +232,37 @@ Coordination:
 
 Follow-up:
 - Add manual ordering only if later required.
+
+---
+
+
+---
+
+### Wireframe Shared App Shell
+
+Owner: Unassigned
+Branch:
+Status: Backlog
+
+Outcome:
+Create the shared authenticated application shell shown across the wireframes.
+
+Scope:
+- Add or refine a consistent authenticated header with `TICKET TRACKER` branding, Board/Teams/Epics navigation, active-route indication, current user email, and a user menu or equivalent logout affordance.
+- Keep public authentication screens outside the authenticated shell.
+- Ensure the header works consistently on board, ticket, team, and epic screens.
+- Add focused tests for visible navigation, active-route indication, current user display, and logout affordance.
+
+Coordination:
+- Build after authentication, teams, epics, ticket routes, and the board shell have landed in product `main`.
+- Treat the wireframes as low-fidelity hierarchy guidance, not a visual redesign mandate.
+- Keep styling restrained and compatible with `TECH.md`; use simple layouts, readable spacing, `padding: 10px`, and `border: 1px solid grey` unless an existing component convention has replaced those defaults.
+- Coordinate with `Component Folder and CSS Module Cleanup` if shared component structure or CSS module ownership changes first.
+- Avoid changing backend business rules, database schema, authentication behavior, route permissions, or session behavior.
+- Do not work in files owned by active implementation branches until those branches land or the Team Lead Agent explicitly coordinates the overlap.
+
+Follow-up:
+- Extend the shared shell only if later screens need additional global navigation.
 
 ---
 
@@ -294,6 +324,36 @@ Coordination:
 
 Follow-up:
 - Add saved filters only if later required.
+
+---
+
+
+---
+
+### Wireframe Board UI Alignment
+
+Owner: Unassigned
+Branch:
+Status: Backlog
+
+Outcome:
+Align the primary Kanban board screen with the board wireframe hierarchy.
+
+Scope:
+- Make the board the primary authenticated work surface with a team selector, prominent new-ticket action, combined search/type/epic filters, clear-filter action, total ticket count, five workflow columns, per-column counts, and compact cards showing type, title, epic when present, and modified recency where practical.
+- Preserve existing ticket state ordering, filtering behavior, create-ticket navigation, open-ticket navigation, drag-and-drop persistence, rollback, and error handling.
+- Preserve required loading, empty, success, and error states while applying the wireframe hierarchy.
+- Add or update focused tests for team selector, new-ticket action, filters, clear action, ticket count, column counts, card content, and drag/drop error visibility where existing drag/drop coverage exposes it.
+
+Coordination:
+- Build after `Kanban Board Shell and Ticket Cards`, `Kanban Board Filters`, and `Kanban Drag and Drop Persistence` have landed in product `main`.
+- Reuse the shared authenticated shell if `Wireframe Shared App Shell` has landed first.
+- Treat the wireframe as low-fidelity hierarchy guidance, not a visual redesign mandate.
+- Keep styling restrained and compatible with `TECH.md`.
+- Avoid changing backend ticket services, ticket state API behavior, database schema, or drag-and-drop persistence semantics.
+
+Follow-up:
+- Record any board usability issue with 100 tickets as a focused follow-up unless it belongs to `Virtualized Large Board Rendering`.
 
 ---
 
@@ -430,6 +490,38 @@ Follow-up:
 
 ---
 
+### Remove Placeholder Scaffolding and Starter Copy
+
+Owner: Unassigned
+Branch:
+Status: Backlog
+
+Outcome:
+Remove remaining placeholder-only screens, services, tests, and README copy after the real product workflows are implemented.
+
+Scope:
+- Remove the placeholder service module and its focused tests once no production route depends on it.
+- Replace the home screen placeholder with a real authenticated entry point, such as redirecting to the primary board or rendering a minimal product home that links to live workflows.
+- Remove placeholder-only route copy, sample ticket cards, sample team/epic options, and placeholder status payloads from ticket and board routes after those routes connect to real services.
+- Remove or rewrite placeholder-focused tests so coverage validates real route behavior instead of scaffold text.
+- Update README introduction text so it describes the product rather than a bootstrapped placeholder application.
+- Preserve public authentication route behavior and any shared helpers still used by implemented routes.
+- Run full verification after cleanup.
+
+Coordination:
+- Build after the mandatory authentication, teams, epics, tickets, comments, and Kanban board workflows have landed in product `main`.
+- Keep this as a cleanup task only; do not add new feature behavior while removing placeholders.
+- Coordinate with `Component Folder and CSS Module Cleanup` if placeholder UI helpers or shared component locations have changed.
+- Avoid touching active epic, ticket, comment, and board implementation branches before their real route behavior lands.
+
+Follow-up:
+- Treat any remaining placeholder text found during final acceptance as a release blocker or a small follow-up cleanup task.
+
+---
+
+
+---
+
 ### Definition of Done
 
 Owner: Unassigned
@@ -465,4 +557,3 @@ Follow-up:
 
 
 ---
-

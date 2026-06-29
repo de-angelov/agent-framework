@@ -4,6 +4,125 @@ Completed work history. Normal orchestrator prompts do not load this file.
 
 ## Done
 
+### Component Folder and CSS Module Cleanup
+
+Owner: Dev Agent 1
+Branch: agent/1/component-folder-css-module-cleanup
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Moved shared UI components into per-component folders with colocated tests and CSS modules.
+
+Scope:
+- Created a dedicated subfolder for each existing shared component under `app/components`.
+- Moved each component implementation into its own folder.
+- Moved each component's focused test into the same folder as the component.
+- Moved component-specific CSS out of `app/styles.css` into colocated `*.module.css` files.
+- Updated imports, route usage, and test references after files moved.
+- Kept `app/styles.css` limited to global resets, document defaults, and intentionally shared application-level primitives.
+- Preserved existing component behavior and visual simplicity.
+
+Progress:
+- Moved `button`, `dialog`, `table`, and `authenticated-header` into per-component folders.
+- Added folder index exports for stable shared component imports.
+- Extracted button, dialog, table, and authenticated-header styles into CSS modules.
+- Updated focused component tests and the stale home route assertion to preserve the existing `Continue` button behavior.
+- Rebased the product `main` squash commit onto the current remote `main` after Dev Agent 2's auth screen merge.
+
+Verification:
+- `npm test` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
+Merge:
+- Branch `agent/1/component-folder-css-module-cleanup` pushed at commit `7d86848`.
+- Squash-merged into product `main` as commit `0793547` (`Task 13: colocate shared component styles`) and pushed.
+
+Follow-up:
+- Apply the same folder-and-module convention to future route-specific components as they are extracted.
+
+---
+
+
+### Wireframe Auth Screen Alignment
+
+Owner: Dev Agent 2
+Branch: agent/2/wireframe-auth-screen-alignment
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Aligned login, sign-up, resend verification, and email-verification result screens with the authentication wireframe.
+
+Scope:
+- Shaped login, sign-up, resend verification, and email-verification result screens around centered auth panels with clear primary actions, cross-links between login and sign-up, resend verification access, and distinct success versus expired/invalid token states.
+- Preserved existing authentication behavior, validation, redirects, and token lifecycle.
+- Kept unverified-account resend access clear from login and verification-result states.
+- Added focused tests for primary actions, login/sign-up cross-links, resend verification access, success verification state, and expired/invalid token states.
+
+Progress:
+- Added a route-scoped auth panel helper and CSS module for public auth screens.
+- Reworked login, sign-up, resend verification, and verification result views around centered panels and clear primary actions.
+- Added a GET screen for resend verification while preserving successful POST redirect behavior.
+- Added focused auth screen tests and updated placeholder smoke coverage for the new resend view.
+
+Verification:
+- `npm test` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
+Merge:
+- Branch `agent/2/wireframe-auth-screen-alignment` pushed.
+- Squash-merged into product `main` as commit `a70bc28` (`Task 13: align auth screens with wireframe`) and pushed.
+
+Follow-up:
+- Add password reset UI only through the separate `Password Reset Flow` task.
+
+---
+
+
+### Epic Management UI
+
+Owner: Dev Agent 2
+Branch: agent/2/epic-management-ui
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Provided a separate epic management screen for creating, listing, editing, and deleting epics.
+
+Scope:
+- Select the team when an epic is created.
+- List epics with their team, title, optional description, created timestamp, and modified timestamp.
+- Allow authenticated users to create, edit, and delete epics.
+- Show a clear UI validation message when epic deletion is blocked.
+- Keep moving epics between teams out of scope.
+- Add focused route/component coverage for listing, creation, editing, deletion, title validation, and blocked deletion messaging.
+
+Progress:
+- Replaced the epic placeholder route with authenticated loader/action handling.
+- Added a team-scoped create form and a table listing epics with team, title, description, created timestamp, and modified timestamp.
+- Added row-level edit and delete forms while preserving immutable epic teams.
+- Added blocked-delete and title-validation messaging through the route action.
+- Added a server-only route action helper to keep server service imports out of the client bundle.
+- Added focused route/action coverage for listing UI, creation, editing, deletion, blank title validation, blocked deletion, and auth redirects.
+
+Verification:
+- `npm test` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
+Merge:
+- Branch `agent/2/epic-management-ui` pushed.
+- Squash-merged into product `main` as commit `f40feaf` (`Task 11: add epic management UI`) and pushed.
+
+Follow-up:
+- Add bulk epic management only if later required.
+
+---
+
+
 ### Exhaustive Mapper Pattern Cleanup
 
 Owner: Dev Agent 1
@@ -536,3 +655,40 @@ Progress:
 
 Follow-up:
 - Replace placeholders with the first real product workflow.
+
+---
+
+### Development Seed User Command
+
+Owner: Dev Agent 2
+Branch: agent/2/development-seed-user-command
+Status: Done
+Completed: 2026-06-29
+
+Outcome:
+Provide an explicit development-only command that creates or refreshes a verified local test user for manual QA.
+
+Scope:
+- Add a non-default package script or CLI command for development seeding, such as `npm run db:seed:dev`.
+- Create or update a verified user with email `test@test.com` and password `test`.
+- Hash the password with the same password hashing path used by normal authentication.
+- Mark the seeded user's email as verified so manual testing can log in without the email verification flow.
+- Make the command idempotent so repeated runs do not create duplicate users or fail on an existing test user.
+- Ensure the default migration/startup path still creates only schema and migration metadata with no application users, teams, epics, tickets, or comments.
+- Document the command in README as a local development convenience only.
+- Add focused tests or a script-level verification covering idempotency, password login compatibility, verified status, and no default seed behavior.
+
+Progress:
+- Added `npm run db:seed:dev` backed by an explicit development seed script.
+- Added an idempotent seed service that creates or refreshes verified `test@test.com` using the normal password hash and login verification path.
+- Preserved fresh migration behavior with no application rows by keeping seeding out of migrations and startup.
+- Documented the command in README as local development-only.
+- Added focused tests for idempotency, password login compatibility, verified status, and no default seed behavior.
+- Verified with `npm test -- app/services/development-seed.server.test.ts app/services/auth.server.test.ts app/db/fresh-database.test.ts`.
+- Verified repeated command execution on a temporary migrated SQLite database with `npm run db:migrate` and two `npm run db:seed:dev` runs.
+- Verified on product `main` with `npm test`, `npm run typecheck`, and `npm run build`.
+- Pushed branch `agent/2/development-seed-user-command` at commit `0ebb44b`.
+- Merged into product `main` and pushed commit `361e514`.
+
+Follow-up:
+- Add richer demo data only through separate explicit development commands if later needed.

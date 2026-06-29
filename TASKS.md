@@ -2,37 +2,35 @@
 
 Live execution lanes only. Pending backlog lives in BACKLOG.md. Completed work lives in ARCHIVE.md.
 
-## Dev Agent 2 In Progress
+## Dev Agent 1 In Progress
 
-### Epic Management UI
+### Wireframe Team Management UI Alignment
 
-Owner: Dev Agent 2
-Branch: agent/2/epic-management-ui
+Owner: Dev Agent 1
+Branch: agent/1/wireframe-team-management-ui-alignment
 Status: In Progress
 
 Outcome:
-Provide a separate epic management screen for creating, listing, editing, and deleting epics.
+Align the team management screen with the team wireframe hierarchy.
 
 Scope:
-- Select the team when an epic is created.
-- List epics with their team, title, optional description, created timestamp, and modified timestamp where practical.
-- Allow authenticated users to create, edit, and delete epics.
-- Show a clear UI validation message when epic deletion is blocked.
-- Keep moving epics between teams out of scope.
-- Add focused route/component coverage for listing, creation, editing, deletion, title validation, and blocked deletion messaging.
+- Shape team management around a table-style list with name, ticket count, epic count, modified timestamp, row edit/delete actions, disabled delete affordance when referenced, explanatory blocked-delete copy, and create/edit form placement consistent with the wireframe.
+- Preserve existing team create, rename, delete, unique-name validation, and blocked-delete behavior.
+- Preserve required loading, empty, success, and error states while applying the wireframe hierarchy.
+- Add or update focused tests for team counts, modified timestamp display, row edit/delete actions, disabled delete affordance, blocked-delete explanation, create form, and edit form.
 
 Coordination:
-- Build after Dev Agent 1 completes `Epic Data Model and Services`.
-- `Epic Data Model and Services`, `Teams`, and `User Accounts and Authentication` are already recorded as Done.
-- Keep UI work scoped to the epic management route and minimal styling only.
-- Use only simple flexbox layouts, `padding: 10px`, and `border: 1px solid grey`.
-- Avoid shared dialog, header, button internals, broad styling, ticket CRUD, and board behavior.
-- Do not modify Dev Agent 1's active `API and Persistence Foundation` branch or persistence-foundation internals.
+- `Teams` and `Component Folder and CSS Module Cleanup` are already recorded as Done, so this can proceed without overlapping the completed shared-component cleanup lane.
+- Reuse the shared authenticated shell if `Wireframe Shared App Shell` has landed first.
+- Keep this task scoped to team route presentation and focused tests.
+- Avoid changing backend team business rules, database schema, ticket behavior, epic behavior, or route permissions.
 
 Follow-up:
-- Add bulk epic management only if later required.
+- If ticket or epic counts are unavailable from existing loaders/services, add a separate backend count-query task before expanding this UI branch.
+
+Progress:
+- Assigned by Team Lead on 2026-06-29.
 
 ---
 
-
----
+## Dev Agent 2 In Progress
