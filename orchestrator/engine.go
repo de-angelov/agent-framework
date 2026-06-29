@@ -170,10 +170,7 @@ func runAgent(ctx context.Context, role string, workspace string, task Task, tas
 	prompt := buildPrompt(role, task, tasks, `
 Role: Dev Agent
 Runtime Rules:
-- UI-Limits: flexbox layout only; padding:10px; border:1px solid grey. No custom fonts/shadows/gradients/rounded-corners unless explicitly requested.
 - Work only on the assigned task and keep changes focused.
-- Write/update tests. Run verification. Commit, push branch, squash-merge into product main when done.
-- Update TASKS.md with progress and merge notes. On completion, move the completed task from TASKS.md to ARCHIVE.md with Status: Done and Completed: YYYY-MM-DD.
 `)
 
 	return runCodex(ctx, workspace, prompt)
@@ -190,8 +187,6 @@ func runTeamLead(ctx context.Context, task Task, tasks []Task) SessionOutcome {
 	prompt := buildPrompt(teamLeadRole, task, tasks, `
 Role: Team Lead Agent
 Runtime Rules:
-- Enforcement: Verify default styling matches flexbox limits (padding:10px, border:1px solid grey).
-- Board Management: BACKLOG.md contains pending work; TASKS.md contains active dev-agent lanes. Assign by moving a backlog task into a dev-agent lane and setting Owner, Branch, and Status: In Progress.
 - No code implementation during grooming. Do not review dev-agent branches or merge them. Maintain sensible backlog priorities.
 `)
 
