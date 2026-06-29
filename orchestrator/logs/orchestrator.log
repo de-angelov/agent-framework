@@ -1,0 +1,5 @@
+2026-06-28T22:14:03+03:00 orchestrator started
+2026-06-28T22:14:03+03:00 repo root: /home/dangelov/jam-test/agent-framework/orchestrator2
+2026-06-28T22:14:03+03:00 failed to read TASKS.md: stat /home/dangelov/jam-test/agent-framework/orchestrator2/TASKS.md: no such file or directory
+2026-06-28T22:14:13+03:00 failed to read TASKS.md: stat /home/dangelov/jam-test/agent-framework/orchestrator2/TASKS.md: no such file or directory
+2026-06-28T22:14:23+03:00 failed to read TASKS.md: stat /home/dangelov/jam-test/agent-framework/orchestrator2/TASKS.md: no such file or directory
