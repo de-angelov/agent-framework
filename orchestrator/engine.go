@@ -265,11 +265,6 @@ func buildTaskContext(role string, activeTask Task, tasks []Task) string {
 			}
 			return strings.HasSuffix(task.Section, "In Progress")
 		})
-
-		b.WriteString("\nBacklog titles:\n")
-		writeTaskSummaries(&b, tasks, func(task Task) bool {
-			return task.Section == "Backlog" && (task.Status == "Backlog" || task.Status == "")
-		})
 	}
 
 	return strings.TrimSpace(b.String())
