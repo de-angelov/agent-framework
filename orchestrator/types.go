@@ -9,16 +9,15 @@ import (
 )
 
 const pollInterval = 10 * time.Second
-const codexResourceRetryDelay = 5 * time.Hour
-const codexStatusCheckInterval = time.Minute
 const failedSessionRetryDelay = time.Minute
 const maxFailedSessionRetries = 3
+const devAgentModel = "gpt-5.4-mini"
 
 var (
 	repoRoot       = mustResolveRepoRoot()
 	workspacesRoot = filepath.Join(repoRoot, "workspaces")
 	logsRoot       = filepath.Join(repoRoot, "logs")
-	logFilePath    = filepath.Join(logsRoot, "orchestrator.log")
+	logFilePath    = defaultLogFilePath()
 
 	backlogFile              = filepath.Join(repoRoot, "BACKLOG.md")
 	tasksFile                = filepath.Join(repoRoot, "TASKS.md")
@@ -37,10 +36,6 @@ var (
 	finished                 = map[string]FinishedSession{}
 	failedSessionRetryCounts = map[string]int{}
 	logMu                    sync.Mutex
-
-	codexResourcePausedUntil time.Time
-	lastCodexStatusCheck     time.Time
-	lastCodexStatusMessage   string
 
 	fileCache = FileCache{
 		items: map[string]cachedFile{},
@@ -85,9 +80,8 @@ type FinishedSession struct {
 type SessionOutcome string
 
 const (
-	sessionCompleted   SessionOutcome = "completed"
-	sessionFailed      SessionOutcome = "failed"
-	sessionRateLimited SessionOutcome = "rate limited"
-	sessionCancelled   SessionOutcome = "cancelled"
-	sessionUnknown     SessionOutcome = "unknown"
+	sessionCompleted SessionOutcome = "completed"
+	sessionFailed    SessionOutcome = "failed"
+	sessionCancelled SessionOutcome = "cancelled"
+	sessionUnknown   SessionOutcome = "unknown"
 )

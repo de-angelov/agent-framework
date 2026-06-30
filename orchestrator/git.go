@@ -50,11 +50,17 @@ func runGit(workspace string, args ...string) {
 }
 
 func prepareBranch(workspace string, branch string) error {
-	if err := checkpointDirtyWorkspace(workspace, branch); err != nil {
+	if err := runGitChecked(workspace, "fetch", "--all", "--prune"); err != nil {
 		return err
 	}
 
-	if err := runGitChecked(workspace, "fetch", "--all", "--prune"); err != nil {
+	currentBranch := currentBranchName(workspace)
+	if currentBranch == branch {
+		logEvent("workspace %s already on %s; preserving local work", workspace, branch)
+		return nil
+	}
+
+	if err := checkpointDirtyWorkspace(workspace, branch); err != nil {
 		return err
 	}
 

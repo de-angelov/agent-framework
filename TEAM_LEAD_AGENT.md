@@ -75,16 +75,27 @@ Avoid speculative architecture and future-proofing.
 
 # Task Complexity Budget
 
-A task should normally:
+An implementation task must be micro-scoped. A task should normally:
 
-* modify fewer than ~300 implementation lines
-* affect no more than 3–5 primary files
-* implement one concern
-* include one verification cycle
-* require roughly one hour or less
+* Modify fewer than ~100 lines of functional production code.
+* Affect no more than 1–2 primary files (excluding test files).
+* Implement exactly ONE atomic concern (e.g., *only* the DB migration, *only* the types, or *only* a single endpoint stub).
+* Take max 20 minutes for an AI session to execute and verify.
 
-If a task exceeds these limits, split it.
+If a task can be logically split into sequential steps, it MUST be split.
 
+---
+
+# Micro-Task Splitting Principles
+When dealing with full-stack features, data layer updates, or frontend expansions, never bundle database, API, and UI changes into a single task. Always split the work horizontally across the stack into independent, atomic micro-steps:
+
+1. **Layer 1: Storage Isolation** — The database schema, SQL/ORM migrations, and direct database-level constraint/validation tests *only*.
+2. **Layer 2: Domain Types & Validation** — Shared TypeScript interfaces, enums, constants, and runtime validation schemas (e.g., Zod/Yup) *only*.
+3. **Layer 3: Data Access & Services** — Server-side queries, mutations, repositories, or business logic service functions *only*.S
+4. **Layer 4: API, Routing & Handlers** — HTTP endpoints, server route handlers, controllers, or GraphQL resolvers *only* (returning stubbed or real service data).
+5. **Layer 5: Client API & State Hooks** — Frontend data fetching functions, SDK clients, state managers, or custom hooks *only* (including network mock/MSW tests).
+6. **Layer 6: UI Components & Layouts** — Visual frontend components, styling, storybooks, and component-level rendering tests *only* (using mocked or static props).
+7. **Layer 7: Feature Integration & E2E** — Wiring the UI to the live client state/endpoints and running the final user-journey validation (e.g., Playwright/Cypress tests).
 ---
 
 # Execution Category
@@ -157,6 +168,17 @@ Explicit exclusions to prevent scope creep.
 Provide the exact command or manual verification steps.
 
 Implementation agents should never need to infer missing scope.
+
+---
+
+# Implementation Agent Contract
+Every AFK task must enable an implementation agent to:
+
+1. Understand the objective.
+2. Know exactly what files and concerns are in scope.
+3. Implement the change.
+4. Verify the change automatically.
+5. Stop without requesting further guidance.
 
 ---
 

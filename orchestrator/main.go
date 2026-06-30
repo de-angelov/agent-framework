@@ -19,6 +19,7 @@ var repoRootMarkers = []string{
 
 func main() {
 	mustMkdir(logsRoot)
+	logFilePath = newRunLogFilePath(time.Now())
 	logEvent("orchestrator started")
 	logEvent("repo root: %s", repoRoot)
 
@@ -96,4 +97,15 @@ func mustMkdir(path string) {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		panic(fmt.Sprintf("failed to create directory %s: %v", path, err))
 	}
+}
+
+func defaultLogFilePath() string {
+	return filepath.Join(logsRoot, "orchestrator.log")
+}
+
+func newRunLogFilePath(now time.Time) string {
+	return filepath.Join(logsRoot, fmt.Sprintf(
+		"orchestrator-%s.log",
+		now.Format("20060102-150405.000000000"),
+	))
 }

@@ -4,6 +4,223 @@ Completed work history. Normal orchestrator prompts do not load this file.
 
 ## Done
 
+### Password Reset Public Routes
+
+Task ID: AUTH-02
+Category: AFK
+Owner: Dev Agent 2
+Branch: agent/2/password-reset-public-routes
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added public forgot-password and reset-password routes backed by the password reset token service.
+
+Verification:
+- Completion inferred from product `main` commit `2175e77` (`AUTH-02: add password reset public routes`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `2175e77`.
+
+Follow-up:
+- None recorded.
+
+---
+
+### Ticket Create Route
+
+Task ID: TICKET-05
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-create-route
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Replaced the create-ticket placeholder with an authenticated create screen wired to the ticket creation service.
+
+Verification:
+- Completion inferred from product `main` commit `0b69f61` (`TICKET-05 add ticket create route`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `0b69f61`.
+
+Follow-up:
+- Ticket presentation polish remains in `TICKET-WF-01`.
+
+---
+
+### Ticket Delete Service
+
+Task ID: TICKET-04B
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-delete-service
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added reusable backend ticket deletion behavior with missing-ticket handling and preserved parent blocked-delete behavior.
+
+Verification:
+- Completion inferred from product `main` commit `762965e` (`TICKET-04B add ticket delete service`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `762965e`.
+
+Follow-up:
+- Route-level delete behavior remains split into `TICKET-09A` and `TICKET-09B`.
+
+---
+
+### Ticket Update Service
+
+Task ID: TICKET-04
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-update-service
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added reusable backend ticket update behavior for editable fields, validation, same-team epic rules, and modified timestamp updates.
+
+Verification:
+- Completion inferred from product `main` commit `de8666f` (`TICKET-04 add ticket update service`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `de8666f`.
+
+Follow-up:
+- Edit-route loader, action, and UI work remains split into `TICKET-07A`, `TICKET-07B`, and `TICKET-07C`.
+
+---
+
+### Password Reset Token Service
+
+Task ID: AUTH-01
+Category: AFK
+Owner: Dev Agent 2
+Branch: agent/2/password-reset-token-service
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added secure password reset token persistence and service behavior.
+
+Verification:
+- Completion inferred from product `main` commit `98e644c` (`AUTH-01: add password reset token service`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `98e644c`.
+
+Follow-up:
+- None recorded.
+
+---
+
+### Ticket Read and List Services
+
+Task ID: TICKET-03
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-read-list-services
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added reusable ticket read models for details screens and team board loading.
+
+Verification:
+- Completion inferred from product `main` commit `3dc1c8a` (`TICKET-03 add ticket read list services`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `3dc1c8a`.
+
+Follow-up:
+- Active dependents are `BOARD-01`.
+
+---
+
+### Ticket Details Route
+
+Task ID: TICKET-06
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-details-route
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Replaced the ticket details placeholder with an authenticated read screen backed by `getTicketById`, including state labels, null-epic handling, and a single edit navigation link.
+
+Verification:
+- `npm test -- app/routes/tickets/details.test.tsx app/services/tickets/tickets.server.test.ts`
+- `npm run typecheck`
+- `npm run build`
+
+Merge:
+- Squash-merged to product `main` and pushed as commit `c2f67a5`.
+
+Follow-up:
+- Ticket edit loader work continues in `TICKET-07A`.
+
+---
+
+### Ticket Create Service
+
+Task ID: TICKET-02
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-create-service
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Added reusable backend ticket creation with required validation, same-team epic validation, server timestamps, and creator assignment.
+
+Verification:
+- Completion inferred from product `main` commit `c23dddc` (`TICKET-02: add ticket creation service`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `c23dddc`.
+
+Follow-up:
+- None recorded.
+
+---
+
+### Ticket Schema Expansion
+
+Task ID: TICKET-01
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-schema-expansion
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Expanded ticket persistence for workflow fields, creator references, and server timestamps.
+
+Verification:
+- Completion inferred from product `main` commit `8f6c038` (`TICKET-01: expand ticket schema`).
+- Detailed command output was not recorded in the coordination task notes before this grooming pass.
+
+Merge:
+- Present on product `main` as commit `8f6c038`.
+
+Follow-up:
+- None recorded.
+
+---
+
 ### Route and Service Folder Structure Cleanup
 
 Task ID: STRUCTURE-01

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestResolveRepoRootFromCurrentRoot(t *testing.T) {
@@ -40,6 +41,22 @@ func TestResolveRepoRootFromDirectoryWithoutMarkers(t *testing.T) {
 	resolved, ok := resolveRepoRootFrom(dir)
 	if ok {
 		t.Fatalf("resolved root = %q, want no root", resolved)
+	}
+}
+
+func TestNewRunLogFilePathUsesTimestampedLogFile(t *testing.T) {
+	oldLogsRoot := logsRoot
+	logsRoot = t.TempDir()
+
+	t.Cleanup(func() {
+		logsRoot = oldLogsRoot
+	})
+
+	got := newRunLogFilePath(time.Date(2026, 6, 30, 13, 45, 12, 123456789, time.UTC))
+	want := filepath.Join(logsRoot, "orchestrator-20260630-134512.123456789.log")
+
+	if got != want {
+		t.Fatalf("newRunLogFilePath() = %q, want %q", got, want)
 	}
 }
 

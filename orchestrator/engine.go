@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -95,10 +92,6 @@ func reconcile(tasks []Task) {
 			delete(finished, role)
 			alreadyFinished = false
 		}
-		if alreadyFinished && finishedSession.Outcome == sessionRateLimited && !codexResourcePauseActiveLocked(time.Now()) {
-			delete(finished, role)
-			alreadyFinished = false
-		}
 		shouldRetry, retryCount := shouldRetryFailedSessionLocked(role, finishedSession, time.Now())
 		if alreadyFinished && shouldRetry {
 			delete(finished, role)
@@ -116,11 +109,6 @@ func reconcile(tasks []Task) {
 		}
 
 		if exists || alreadyFinished {
-			continue
-		}
-
-		if !codexResourcesAvailable() {
-			logEvent("skipping %s because Codex resources are paused", role)
 			continue
 		}
 
@@ -214,7 +202,7 @@ Runtime Rules:
 - Work only on the assigned task and keep changes focused.
 `)
 
-	return runCodex(ctx, workspace, prompt)
+	return runCodex(ctx, workspace, prompt, devAgentModel)
 }
 
 func runTeamLead(ctx context.Context, task Task, tasks []Task) SessionOutcome {
@@ -231,7 +219,7 @@ Runtime Rules:
 - No code implementation during grooming. Do not review dev-agent branches or merge them. Maintain sensible backlog priorities.
 `)
 
-	return runCodex(ctx, teamLeadPath, prompt)
+	return runCodex(ctx, teamLeadPath, prompt, "")
 }
 
 func buildPrompt(role string, task Task, tasks []Task, roleInstructions string) string {
@@ -391,110 +379,6 @@ func taskSummary(body string) string {
 	return strings.Join(pruned, " | ")
 }
 
-func codexResourcesAvailable() bool {
-	now := time.Now()
-
-	mu.Lock()
-	if codexResourcePauseActiveLocked(now) {
-		mu.Unlock()
-		return false
-	}
-	if !lastCodexStatusCheck.IsZero() && now.Sub(lastCodexStatusCheck) < codexStatusCheckInterval {
-		mu.Unlock()
-		return true
-	}
-	lastCodexStatusCheck = now
-	mu.Unlock()
-
-	output, err := runCodexStatus()
-	trimmed := strings.TrimSpace(output)
-	if trimmed == "" {
-		trimmed = "codex status returned no output"
-	}
-
-	if isCodexResourceExhausted(trimmed) {
-		pauseCodexResources(codexResourceRetryDelay, "codex status: "+oneLine(trimmed))
-		return false
-	}
-
-	if err != nil {
-		mu.Lock()
-		lastCodexStatusMessage = "codex status unavailable: " + oneLine(trimmed)
-		mu.Unlock()
-		logEvent("codex status unavailable; continuing: %v: %s", err, oneLine(trimmed))
-		return true
-	}
-
-	mu.Lock()
-	lastCodexStatusMessage = "codex status ok: " + oneLine(trimmed)
-	mu.Unlock()
-
-	logEvent("codex status ok: %s", oneLine(trimmed))
-	return true
-}
-
-// codexResourcePauseActiveLocked checks if resource pause is currently active.
-// Caller MUST hold mu lock.
-func codexResourcePauseActiveLocked(now time.Time) bool {
-	return !codexResourcePausedUntil.IsZero() && now.Before(codexResourcePausedUntil)
-}
-
-func runCodexStatus() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "codex", "status")
-	cmd.Dir = repoRoot
-	cmd.Stdin = os.Stdin
-
-	var output bytes.Buffer
-	cmd.Stdout = &output
-	cmd.Stderr = &output
-
-	err := cmd.Run()
-	return output.String(), err
-}
-
-func pauseCodexResources(delay time.Duration, reason string) {
-	retryAt := time.Now().Add(delay)
-
-	mu.Lock()
-	if retryAt.After(codexResourcePausedUntil) {
-		codexResourcePausedUntil = retryAt
-	}
-	lastCodexStatusMessage = reason
-	mu.Unlock()
-
-	logEvent("pausing Codex launches until %s: %s", retryAt.Format(time.RFC3339), reason)
-}
-
-func isCodexResourceExhausted(output string) bool {
-	text := strings.ToLower(output)
-	resourceWords := []string{
-		"rate limit",
-		"rate_limit",
-		"quota",
-		"usage limit",
-		"usage_limit",
-		"limit reached",
-		"too many requests",
-		"insufficient credits",
-		"out of credits",
-		"resources exhausted",
-		"resource exhausted",
-		"try again later",
-		"reset in",
-		"resets in",
-	}
-
-	for _, word := range resourceWords {
-		if strings.Contains(text, word) {
-			return true
-		}
-	}
-	return false
-}
-
 func oneLine(value string) string {
 	fields := strings.Fields(value)
 	if len(fields) == 0 {
@@ -507,17 +391,25 @@ func oneLine(value string) string {
 	return line
 }
 
-func runCodex(ctx context.Context, workspace string, prompt string) SessionOutcome {
-	logEvent("running codex in %s", workspace)
+func runCodex(ctx context.Context, workspace string, prompt string, model string) SessionOutcome {
+	args := []string{"exec", "--sandbox", "danger-full-access"}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	args = append(args, "-")
 
-	cmd := exec.CommandContext(ctx, "codex", "exec", "--sandbox", "danger-full-access", "-")
+	modelLabel := model
+	if modelLabel == "" {
+		modelLabel = "configured default"
+	}
+	logEvent("running codex in %s with model %s", workspace, modelLabel)
+
+	cmd := exec.CommandContext(ctx, "codex", args...)
 	cmd.Dir = workspace
 	cmd.Stdin = strings.NewReader(prompt)
 
-	var captured bytes.Buffer
-	output := io.MultiWriter(lockedLogWriter{}, &captured)
-	cmd.Stdout = output
-	cmd.Stderr = output
+	cmd.Stdout = lockedLogWriter{}
+	cmd.Stderr = lockedLogWriter{}
 
 	err := cmd.Run()
 
@@ -527,11 +419,6 @@ func runCodex(ctx context.Context, workspace string, prompt string) SessionOutco
 	}
 
 	if err != nil {
-		if isCodexResourceExhausted(captured.String()) {
-			pauseCodexResources(codexResourceRetryDelay, "codex exec: "+oneLine(captured.String()))
-			logEvent("codex resource limit detected in %s: %v", workspace, err)
-			return sessionRateLimited
-		}
 		logEvent("codex failed in %s: %v", workspace, err)
 		return sessionFailed
 	}
