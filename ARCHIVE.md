@@ -173,6 +173,30 @@ Follow-up:
 
 ---
 
+### Ticket Edit Loader
+
+Task ID: TICKET-07A
+Category: AFK
+Owner: Dev Agent 1
+Branch: agent/1/ticket-edit-loader
+Status: Done
+Completed: 2026-06-30
+
+Outcome:
+Loaded the authenticated ticket edit route with ticket read data, team lists, and selected-team epics, plus a missing-ticket state for unknown ids.
+
+Verification:
+- `npm test -- app/routes/tickets/edit.test.tsx app/services/tickets/tickets.server.test.ts`
+- `npm run typecheck`
+
+Merge:
+- Squash-merged to product `main` and pushed as commit `e110f1d`.
+
+Follow-up:
+- None recorded.
+
+---
+
 ### Ticket Create Service
 
 Task ID: TICKET-02
