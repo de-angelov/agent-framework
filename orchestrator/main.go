@@ -18,6 +18,10 @@ var repoRootMarkers = []string{
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "experiment" {
+		os.Exit(runExperimentCLI(os.Args[2:]))
+	}
+
 	mustMkdir(logsRoot)
 	logFilePath = newRunLogFilePath(time.Now())
 	logEvent("orchestrator started")

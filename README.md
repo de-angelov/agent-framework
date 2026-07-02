@@ -74,10 +74,11 @@ cd setup
 go run setup.go
 ```
 
-Then start the orchestrator from the top-level repo:
+Then start the orchestrator from the Go module directory:
 
 ```bash
-go run ./orchestrator
+cd orchestrator
+go run .
 ```
 
 Output:
@@ -91,7 +92,7 @@ Root: /path/to/my-project
 Setup complete.
 
 Next steps:
-  go run ./orchestrator
+  cd orchestrator && go run .
 
 Orchestrator started...
 
@@ -99,6 +100,29 @@ repo root: /path/to/my-project
 ```
 
 Nothing happens because no work has been assigned.
+
+---
+
+# Agent Loop Experiments
+
+Use experiment mode to run the same ticket in isolated branches with different
+prompts, models, profiles, or Codex config overrides. Each variant gets a git
+worktree copied from the configured base branch, and the run writes a Markdown
+and JSON report with duration, prompt size, detected token usage, commits, diff
+stats, and patch files.
+
+```bash
+cd orchestrator
+go run . experiment --config ../experiments/example-agent-loop.json
+```
+
+Edit `experiments/tickets/example-ticket.md` or point `ticketFile` at another
+ticket file. Change `baseBranch` to the dev branch you want copied for each
+variant; if omitted, the current branch of `sourceWorkspace` is used.
+
+Before Codex starts, experiment mode prepares each worktree. For Node projects it
+symlinks `node_modules` from `sourceWorkspace` when available, otherwise runs
+`npm ci`. Override this with `prepareCommands`, or set `skipPrepare: true`.
 
 ---
 
